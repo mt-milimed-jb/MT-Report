@@ -806,8 +806,14 @@
     <script>
         // --- State Management ---
         const supabaseUrl = 'https://jqaqvmbilqrexdednobz.supabase.co';
-        const supabaseKey = 'sb_publishable_WhdREeY5jHhK8d5sYiTUVw_-iZfUMdC';
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpxYXF2bWJpbHFyZXhkZWRub2J6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1Mjc2MzMsImV4cCI6MjA5MzEwMzYzM30.kKcIpdUjodR5NGJ0bZE1-s2TTb1FZnfHPi5wplhKAq8';
+        let supabase = null;
+        try {
+            supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        } catch (err) {
+            console.error('Supabase Initialization Error:', err);
+            setTimeout(() => alert('รหัส Supabase Key ไม่ถูกต้อง! ระบบจะไม่สามารถบันทึกข้อมูลได้ กรุณาใส่รหัส Anon Key ที่ถูกต้องในไฟล์ index.html'), 1000);
+        }
 
         let isAdminMode = false;
         let tickets = [];
@@ -1613,6 +1619,7 @@
 
         // --- Supabase Data Fetching ---
         async function fetchTickets() {
+            if (!supabase) return;
             try {
                 const { data, error } = await supabase.from('tickets').select('*').order('created_at', { ascending: false });
                 if (error) throw error;
@@ -1624,6 +1631,7 @@
         }
 
         async function fetchTechnicians() {
+            if (!supabase) return;
             try {
                 const { data, error } = await supabase.from('technicians').select('*').order('name', { ascending: true });
                 if (error) throw error;
