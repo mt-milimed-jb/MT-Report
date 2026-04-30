@@ -803,13 +803,14 @@
         </div>
     </div>
 
+
     <script>
         // --- State Management ---
         const supabaseUrl = 'https://jqaqvmbilqrexdednobz.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpxYXF2bWJpbHFyZXhkZWRub2J6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1Mjc2MzMsImV4cCI6MjA5MzEwMzYzM30.kKcIpdUjodR5NGJ0bZE1-s2TTb1FZnfHPi5wplhKAq8';
-        let supabase = null;
+        let supabaseClient = null;
         try {
-            supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+            supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
         } catch (err) {
             console.error('Supabase Initialization Error:', err);
             setTimeout(() => alert('รหัส Supabase Key ไม่ถูกต้อง! ระบบจะไม่สามารถบันทึกข้อมูลได้ กรุณาใส่รหัส Anon Key ที่ถูกต้องในไฟล์ index.html'), 1000);
@@ -896,7 +897,7 @@
         async function deleteTicket(id) {
             if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบรายการแจ้งซ่อมรหัส ${id} ? การกระทำนี้ไม่สามารถกู้คืนได้`)) {
                 try {
-                    const { error } = await supabase.from('tickets').delete().eq('id', id);
+                    const { error } = await supabaseClient.from('tickets').delete().eq('id', id);
                     if (error) throw error;
                     tickets = tickets.filter(t => t.id !== id);
                     renderTables();
@@ -963,7 +964,7 @@
             updates.partsTotalCost = parseFloat(document.getElementById('admin-edit-partsTotalCost').value) || null;
             
             try {
-                const { error } = await supabase.from('tickets').update(updates).eq('id', id);
+                const { error } = await supabaseClient.from('tickets').update(updates).eq('id', id);
                 if (error) throw error;
                 Object.assign(t, updates);
             } catch (err) {
@@ -1006,7 +1007,7 @@
             const name = document.getElementById('new-tech-name').value.trim();
             if(name) {
                 try {
-                    const { data, error } = await supabase.from('technicians').insert([{ name: name }]).select();
+                    const { data, error } = await supabaseClient.from('technicians').insert([{ name: name }]).select();
                     if (error) throw error;
                     if (data && data.length > 0) {
                         techniciansList.push(data[0]);
@@ -1022,7 +1023,7 @@
         
         async function removeTechnician(id) {
             try {
-                const { error } = await supabase.from('technicians').delete().eq('id', id);
+                const { error } = await supabaseClient.from('technicians').delete().eq('id', id);
                 if (error) throw error;
                 techniciansList = techniciansList.filter(t => t.id !== id);
                 loadTechnicians();
@@ -1268,7 +1269,7 @@
             };
             
             try {
-                const { error } = await supabase.from('tickets').insert([newTicket]);
+                const { error } = await supabaseClient.from('tickets').insert([newTicket]);
                 if (error) throw error;
                 
                 tickets.unshift(newTicket);
@@ -1314,7 +1315,7 @@
                 updates.rejectReason = '';
 
                 try {
-                    const { error } = await supabase.from('tickets').update(updates).eq('id', id);
+                    const { error } = await supabaseClient.from('tickets').update(updates).eq('id', id);
                     if (error) throw error;
                     Object.assign(ticket, updates);
                 } catch (err) {
@@ -1363,7 +1364,7 @@
                 }
                 
                 try {
-                    const { error } = await supabase.from('tickets').update(updates).eq('id', id);
+                    const { error } = await supabaseClient.from('tickets').update(updates).eq('id', id);
                     if (error) throw error;
                     Object.assign(ticket, updates);
                 } catch (err) {
@@ -1453,7 +1454,7 @@
                 updates.engCloseDate = document.getElementById('eng-close-date').value;
                 
                 try {
-                    const { error } = await supabase.from('tickets').update(updates).eq('id', id);
+                    const { error } = await supabaseClient.from('tickets').update(updates).eq('id', id);
                     if (error) throw error;
                     Object.assign(ticket, updates);
                 } catch (err) {
@@ -1517,7 +1518,7 @@
                 }
                 
                 try {
-                    const { error } = await supabase.from('tickets').update(updates).eq('id', id);
+                    const { error } = await supabaseClient.from('tickets').update(updates).eq('id', id);
                     if (error) throw error;
                     Object.assign(ticket, updates);
                 } catch (err) {
@@ -1619,9 +1620,9 @@
 
         // --- Supabase Data Fetching ---
         async function fetchTickets() {
-            if (!supabase) return;
+            if (!supabaseClient) return;
             try {
-                const { data, error } = await supabase.from('tickets').select('*').order('created_at', { ascending: false });
+                const { data, error } = await supabaseClient.from('tickets').select('*').order('created_at', { ascending: false });
                 if (error) throw error;
                 tickets = data || [];
             } catch (err) {
@@ -1631,9 +1632,9 @@
         }
 
         async function fetchTechnicians() {
-            if (!supabase) return;
+            if (!supabaseClient) return;
             try {
-                const { data, error } = await supabase.from('technicians').select('*').order('name', { ascending: true });
+                const { data, error } = await supabaseClient.from('technicians').select('*').order('name', { ascending: true });
                 if (error) throw error;
                 techniciansList = data || [];
                 // Update technicians in local storage for legacy code fallback, if any
