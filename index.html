@@ -909,7 +909,7 @@
                     if(!document.getElementById('view-dashboard').classList.contains('hidden')) renderDashboard();
                 } catch (err) {
                     console.error('Error deleting ticket:', err);
-                    alert('ไม่สามารถลบข้อมูลได้');
+                    alert('ไม่สามารถลบข้อมูลได้: ' + (err.message || JSON.stringify(err)));
                 }
             }
         }
@@ -974,7 +974,7 @@
                 Object.assign(t, updates);
             } catch (err) {
                 console.error('Error saving admin edit:', err);
-                alert('ไม่สามารถบันทึกข้อมูลการแก้ไขได้');
+                alert('ไม่สามารถบันทึกข้อมูลการแก้ไขได้: ' + (err.message || JSON.stringify(err)));
                 return;
             }
             
@@ -1021,7 +1021,7 @@
                     }
                 } catch (err) {
                     console.error('Error adding technician:', err);
-                    alert('ไม่สามารถเพิ่มช่างได้ (อาจมีชื่อซ้ำหรือระบบมีปัญหา)');
+                    alert('ไม่สามารถเพิ่มช่างได้: ' + (err.message || JSON.stringify(err)));
                 }
             }
         }
@@ -1034,7 +1034,7 @@
                 loadTechnicians();
             } catch (err) {
                 console.error('Error removing technician:', err);
-                alert('ไม่สามารถลบช่างได้');
+                alert('ไม่สามารถลบช่างได้: ' + (err.message || JSON.stringify(err)));
             }
         }
 
@@ -1325,7 +1325,7 @@
                     Object.assign(ticket, updates);
                 } catch (err) {
                     console.error('Error assigning:', err);
-                    alert('ไม่สามารถบันทึกข้อมูลได้');
+                    alert('ไม่สามารถบันทึกข้อมูลได้: ' + (err.message || JSON.stringify(err)));
                     return;
                 }
             }
@@ -1374,7 +1374,7 @@
                     Object.assign(ticket, updates);
                 } catch (err) {
                     console.error('Error saving parts arrived:', err);
-                    alert('ไม่สามารถบันทึกข้อมูลได้');
+                    alert('ไม่สามารถบันทึกข้อมูลได้: ' + (err.message || JSON.stringify(err)));
                     return;
                 }
             }
@@ -1464,7 +1464,7 @@
                     Object.assign(ticket, updates);
                 } catch (err) {
                     console.error('Error saving eng close:', err);
-                    alert('ไม่สามารถบันทึกข้อมูลได้');
+                    alert('ไม่สามารถบันทึกข้อมูลได้: ' + (err.message || JSON.stringify(err)));
                     return;
                 }
             }
@@ -1484,6 +1484,9 @@
             document.getElementById('req-close-date').valueAsDate = new Date();
             document.getElementById('req-reject-reason').value = '';
             
+            document.getElementById('req-close-pin').value = '';
+            document.getElementById('req-close-name').value = localStorage.getItem('saved_req_name') || '';
+            
             document.getElementById('modal-req-verify').classList.remove('hidden');
         }
 
@@ -1501,6 +1504,8 @@
                 alert('กรุณาระบุชื่อผู้ตรวจรับงาน');
                 return;
             }
+
+            localStorage.setItem('saved_req_name', name);
 
             const id = document.getElementById('req-verify-id').value;
             const ticket = tickets.find(t => t.id === id);
@@ -1528,7 +1533,7 @@
                     Object.assign(ticket, updates);
                 } catch (err) {
                     console.error('Error saving req close:', err);
-                    alert('ไม่สามารถบันทึกข้อมูลได้');
+                    alert('ไม่สามารถบันทึกข้อมูลได้: ' + (err.message || JSON.stringify(err)));
                     return;
                 }
             }
