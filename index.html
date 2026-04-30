@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Sarabun', sans-serif; background-color: #f3f4f6; }
@@ -46,7 +47,7 @@
     </nav>
 
     <!-- View: Home Menu (Hero Section) -->
-    <div id="view-home" class="block relative w-full bg-cover bg-center" style="min-height: calc(100vh - 80px); background-image: url('file:///C:/Users/nithis/.gemini/antigravity/brain/14e1c3dd-278c-4559-a738-ac20d48224a3/pharma_engineering_bg_1777530350204.png');">
+    <div id="view-home" class="block relative w-full bg-cover bg-center" style="min-height: calc(100vh - 80px); background-image: url('./bg-home.png');">
         <!-- Overlay -->
         <div class="absolute inset-0 bg-blue-900/30"></div>
         
@@ -804,34 +805,13 @@
 
     <script>
         // --- State Management ---
+        const supabaseUrl = 'https://jqaqvmbilqrexdednobz.supabase.co';
+        const supabaseKey = 'sb_publishable_WhdREeY5jHhK8d5sYiTUVw_-iZfUMdC';
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
         let isAdminMode = false;
-
-        if (!localStorage.getItem('technicians')) {
-            localStorage.setItem('technicians', JSON.stringify(['ช่างสมชาย', 'ช่างวิชัย', 'ทีม Outsource']));
-        }
-
-        let tickets = [
-            {
-                id: 'TK-20231024-001', reqDate: '2023-10-24', reqSubject: 'ปั๊มไฮดรอลิกไม่ทำงาน',
-                reqName: 'สมชาย', reqDept: 'แผนกผลิต', machineId: 'MC-001', machineName: 'เครื่องปั๊มโลหะ 100T',
-                details: 'กดสวิทช์แล้วเงียบ', symptom: 'น้ำมันรั่วซึม', priority: 'High',
-                status: 'Pending', assignDate: '-', engCloseDate: '-', reqCloseDate: '-'
-            },
-            {
-                id: 'TK-20231025-002', reqDate: '2023-10-25', reqSubject: 'สายพานขาด',
-                reqName: 'วิไล', reqDept: 'บรรจุภัณฑ์', machineId: 'PK-005', machineName: 'สายพานลำเลียง',
-                details: '-', symptom: 'สายพานขาดครึ่ง', priority: 'Urgent',
-                status: 'In Progress', assignDate: '2023-10-25', tech: 'ช่างวิชัย', jobType: 'เครื่องกล', repairType: 'ซ่อมเองได้',
-                estHours: 2, estMinutes: 0
-            },
-            {
-                id: 'TK-20231026-003', reqDate: '2023-10-26', reqSubject: 'ไฟแสงสว่างไม่ติด',
-                reqName: 'สมศักดิ์', reqDept: 'คลังสินค้า', machineId: 'FAC-L1', machineName: 'หลอดไฟโซน A',
-                details: '-', symptom: 'หลอดขาด', priority: 'Normal',
-                status: 'Waiting Verification', assignDate: '2023-10-26', tech: 'ช่างสมชาย', jobType: 'ไฟฟ้า', repairType: 'ซ่อมเองได้',
-                engCloseDate: '2023-10-26', actualDuration: 0.5, actionTaken: 'เปลี่ยนหลอด LED 18W', partsTotalCost: 150
-            }
-        ];
+        let tickets = [];
+        let techniciansList = [];
         
         let currentParts = [];
         let chartsInstance = {};
@@ -907,11 +887,18 @@
             if(!document.getElementById('view-dashboard').classList.contains('hidden')) renderDashboard();
         }
 
-        function deleteTicket(id) {
+        async function deleteTicket(id) {
             if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบรายการแจ้งซ่อมรหัส ${id} ? การกระทำนี้ไม่สามารถกู้คืนได้`)) {
-                tickets = tickets.filter(t => t.id !== id);
-                renderTables();
-                if(!document.getElementById('view-dashboard').classList.contains('hidden')) renderDashboard();
+                try {
+                    const { error } = await supabase.from('tickets').delete().eq('id', id);
+                    if (error) throw error;
+                    tickets = tickets.filter(t => t.id !== id);
+                    renderTables();
+                    if(!document.getElementById('view-dashboard').classList.contains('hidden')) renderDashboard();
+                } catch (err) {
+                    console.error('Error deleting ticket:', err);
+                    alert('ไม่สามารถลบข้อมูลได้');
+                }
             }
         }
 
@@ -943,30 +930,41 @@
             document.getElementById('modal-admin-edit').classList.remove('hidden');
         }
 
-        function saveAdminEdit(e) {
+        async function saveAdminEdit(e) {
             e.preventDefault();
             const id = document.getElementById('admin-edit-id').value;
             const t = tickets.find(x => x.id === id);
             if (!t) return;
             
-            t.status = document.getElementById('admin-edit-status').value;
-            t.reqDate = document.getElementById('admin-edit-reqDate').value;
-            t.reqName = document.getElementById('admin-edit-reqName').value;
-            t.reqDept = document.getElementById('admin-edit-reqDept').value;
-            t.reqSubject = document.getElementById('admin-edit-reqSubject').value;
-            t.machineId = document.getElementById('admin-edit-machineId').value;
-            t.machineName = document.getElementById('admin-edit-machineName').value;
-            t.symptom = document.getElementById('admin-edit-symptom').value;
+            const updates = {};
+            updates.status = document.getElementById('admin-edit-status').value;
+            updates.reqDate = document.getElementById('admin-edit-reqDate').value;
+            updates.reqName = document.getElementById('admin-edit-reqName').value;
+            updates.reqDept = document.getElementById('admin-edit-reqDept').value;
+            updates.reqSubject = document.getElementById('admin-edit-reqSubject').value;
+            updates.machineId = document.getElementById('admin-edit-machineId').value;
+            updates.machineName = document.getElementById('admin-edit-machineName').value;
+            updates.symptom = document.getElementById('admin-edit-symptom').value;
             
-            t.tech = document.getElementById('admin-edit-tech').value;
-            t.jobType = document.getElementById('admin-edit-jobType').value;
-            t.repairType = document.getElementById('admin-edit-repairType').value;
-            t.actionTaken = document.getElementById('admin-edit-actionTaken').value;
+            updates.tech = document.getElementById('admin-edit-tech').value;
+            updates.jobType = document.getElementById('admin-edit-jobType').value;
+            updates.repairType = document.getElementById('admin-edit-repairType').value;
+            updates.actionTaken = document.getElementById('admin-edit-actionTaken').value;
             
-            t.engCloseDate = document.getElementById('admin-edit-engCloseDate').value || '-';
-            t.reqCloseDate = document.getElementById('admin-edit-reqCloseDate').value || '-';
-            t.actualDuration = parseFloat(document.getElementById('admin-edit-actualDuration').value) || null;
-            t.partsTotalCost = parseFloat(document.getElementById('admin-edit-partsTotalCost').value) || null;
+            updates.engCloseDate = document.getElementById('admin-edit-engCloseDate').value || '-';
+            updates.reqCloseDate = document.getElementById('admin-edit-reqCloseDate').value || '-';
+            updates.actualDuration = parseFloat(document.getElementById('admin-edit-actualDuration').value) || null;
+            updates.partsTotalCost = parseFloat(document.getElementById('admin-edit-partsTotalCost').value) || null;
+            
+            try {
+                const { error } = await supabase.from('tickets').update(updates).eq('id', id);
+                if (error) throw error;
+                Object.assign(t, updates);
+            } catch (err) {
+                console.error('Error saving admin edit:', err);
+                alert('ไม่สามารถบันทึกข้อมูลการแก้ไขได้');
+                return;
+            }
             
             closeModal('modal-admin-edit');
             renderTables();
@@ -984,30 +982,48 @@
 
         // --- Technicians ---
         function loadTechnicians() {
-            const techs = JSON.parse(localStorage.getItem('technicians'));
+            const techs = techniciansList;
             const select = document.getElementById('assign-tech');
-            select.innerHTML = '<option value="">-- เลือกช่างผู้รับผิดชอบ --</option>' + techs.map(t => `<option value="${t}">${t}</option>`).join('');
+            select.innerHTML = '<option value="">-- เลือกช่างผู้รับผิดชอบ --</option>' + techs.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
             
             const list = document.getElementById('tech-list-manage');
             list.innerHTML = techs.map((t, index) => `
                 <li class="flex justify-between items-center py-1 border-b last:border-0">
-                    <span class="text-sm">${t}</span>
-                    <button onclick="removeTechnician(${index})" class="text-red-500 hover:text-red-700 text-xs"><i class="fas fa-trash"></i></button>
+                    <span class="text-sm">${t.name}</span>
+                    <button onclick="removeTechnician(${t.id})" class="text-red-500 hover:text-red-700 text-xs"><i class="fas fa-trash"></i></button>
                 </li>
             `).join('');
         }
         function openTechManager() { loadTechnicians(); document.getElementById('modal-manage-tech').classList.remove('hidden'); }
-        function addTechnician() {
+        
+        async function addTechnician() {
             const name = document.getElementById('new-tech-name').value.trim();
             if(name) {
-                const techs = JSON.parse(localStorage.getItem('technicians'));
-                techs.push(name); localStorage.setItem('technicians', JSON.stringify(techs));
-                document.getElementById('new-tech-name').value = ''; loadTechnicians();
+                try {
+                    const { data, error } = await supabase.from('technicians').insert([{ name: name }]).select();
+                    if (error) throw error;
+                    if (data && data.length > 0) {
+                        techniciansList.push(data[0]);
+                        document.getElementById('new-tech-name').value = '';
+                        loadTechnicians();
+                    }
+                } catch (err) {
+                    console.error('Error adding technician:', err);
+                    alert('ไม่สามารถเพิ่มช่างได้ (อาจมีชื่อซ้ำหรือระบบมีปัญหา)');
+                }
             }
         }
-        function removeTechnician(index) {
-            const techs = JSON.parse(localStorage.getItem('technicians'));
-            techs.splice(index, 1); localStorage.setItem('technicians', JSON.stringify(techs)); loadTechnicians();
+        
+        async function removeTechnician(id) {
+            try {
+                const { error } = await supabase.from('technicians').delete().eq('id', id);
+                if (error) throw error;
+                techniciansList = techniciansList.filter(t => t.id !== id);
+                loadTechnicians();
+            } catch (err) {
+                console.error('Error removing technician:', err);
+                alert('ไม่สามารถลบช่างได้');
+            }
         }
 
         // --- Core UI & Tabs ---
@@ -1228,23 +1244,37 @@
         }
 
         // --- Actions ---
-        function submitRequest(e) {
+        async function submitRequest(e) {
             e.preventDefault();
             const reqDate = document.getElementById('req-date').value;
             const newTicket = {
-                id: generateTicketId(reqDate), reqDate: reqDate,
+                id: generateTicketId(reqDate), 
+                reqDate: reqDate,
                 reqSubject: document.getElementById('req-subject').value,
-                reqName: document.getElementById('req-name').value, reqDept: document.getElementById('req-dept').value,
-                machineId: document.getElementById('req-machine-id').value, machineName: document.getElementById('req-machine-name').value,
-                details: document.getElementById('req-details').value, symptom: document.getElementById('req-symptom').value,
+                reqName: document.getElementById('req-name').value, 
+                reqDept: document.getElementById('req-dept').value,
+                machineId: document.getElementById('req-machine-id').value, 
+                machineName: document.getElementById('req-machine-name').value,
+                details: document.getElementById('req-details').value, 
+                symptom: document.getElementById('req-symptom').value,
                 priority: document.getElementById('req-priority').value,
                 status: 'Pending', assignDate: '-', engCloseDate: '-', reqCloseDate: '-'
             };
-            tickets.unshift(newTicket);
-            document.getElementById('form-request').reset();
-            document.getElementById('req-date').valueAsDate = new Date();
-            alert(`ส่งแจ้งซ่อมสำเร็จ!\nเลขที่: ${newTicket.id}`);
-            renderTables();
+            
+            try {
+                const { error } = await supabase.from('tickets').insert([newTicket]);
+                if (error) throw error;
+                
+                tickets.unshift(newTicket);
+                document.getElementById('form-request').reset();
+                document.getElementById('req-date').valueAsDate = new Date();
+                alert(`ส่งแจ้งซ่อมสำเร็จ!\nเลขที่: ${newTicket.id}`);
+                renderTables();
+                if(!document.getElementById('view-dashboard').classList.contains('hidden')) renderDashboard();
+            } catch (err) {
+                console.error('Error submitting request:', err);
+                alert('ไม่สามารถส่งคำขอแจ้งซ่อมได้ กรุณาลองใหม่อีกครั้ง');
+            }
         }
 
         function openAssignModal(id) {
@@ -1254,32 +1284,42 @@
             document.getElementById('modal-assign').classList.remove('hidden');
         }
 
-        function saveAssignment(e) {
+        async function saveAssignment(e) {
             e.preventDefault();
             const id = document.getElementById('assign-id').value;
             const ticket = tickets.find(t => t.id === id);
             if(ticket) {
-                ticket.jobType = document.getElementById('assign-job-type').value;
-                ticket.repairType = document.getElementById('assign-repair-type').value;
+                const updates = {};
+                updates.jobType = document.getElementById('assign-job-type').value;
+                updates.repairType = document.getElementById('assign-repair-type').value;
                 
-                // Set status based on repair type
-                if (ticket.repairType === 'ซ่อมภายนอก' || ticket.repairType === 'รออะไหล่') {
-                    ticket.status = 'Waiting Parts';
-                    ticket.waitStartDate = new Date().toISOString();
+                if (updates.repairType === 'ซ่อมภายนอก' || updates.repairType === 'รออะไหล่') {
+                    updates.status = 'Waiting Parts';
+                    updates.waitStartDate = new Date().toISOString();
                 } else {
-                    ticket.status = 'In Progress';
+                    updates.status = 'In Progress';
                 }
 
-                ticket.tech = document.getElementById('assign-tech').value;
-                ticket.assignNote = document.getElementById('assign-note').value;
-                ticket.estHours = parseInt(document.getElementById('assign-est-hours').value) || 0;
-                ticket.estMinutes = parseInt(document.getElementById('assign-est-minutes').value) || 0;
-                ticket.assignDate = new Date().toISOString().split('T')[0];
-                ticket.rejectReason = ''; // Clear any previous reject reason
+                updates.tech = document.getElementById('assign-tech').value;
+                updates.assignNote = document.getElementById('assign-note').value;
+                updates.estHours = parseInt(document.getElementById('assign-est-hours').value) || 0;
+                updates.estMinutes = parseInt(document.getElementById('assign-est-minutes').value) || 0;
+                updates.assignDate = new Date().toISOString().split('T')[0];
+                updates.rejectReason = '';
+
+                try {
+                    const { error } = await supabase.from('tickets').update(updates).eq('id', id);
+                    if (error) throw error;
+                    Object.assign(ticket, updates);
+                } catch (err) {
+                    console.error('Error assigning:', err);
+                    alert('ไม่สามารถบันทึกข้อมูลได้');
+                    return;
+                }
             }
             closeModal('modal-assign'); 
             renderTables();
-            renderDashboard();
+            if(!document.getElementById('view-dashboard').classList.contains('hidden')) renderDashboard();
         }
 
         // --- Parts Arrived Logic ---
@@ -1300,26 +1340,36 @@
             document.getElementById('modal-parts-arrived').classList.remove('hidden');
         }
 
-        function savePartsArrived(e) {
+        async function savePartsArrived(e) {
             e.preventDefault();
             const id = document.getElementById('parts-arrived-id').value;
             const ticket = tickets.find(t => t.id === id);
             
             if(ticket) {
-                ticket.status = 'Pending'; // คืนไปหน้าจ่ายงาน (รอจ่ายงานใหม่)
-                ticket.prNumber = document.getElementById('parts-pr-number').value;
-                ticket.orderDate = document.getElementById('parts-order-date').value;
-                ticket.receiveDate = document.getElementById('parts-receive-date').value;
+                const updates = {};
+                updates.status = 'Pending';
+                updates.prNumber = document.getElementById('parts-pr-number').value;
+                updates.orderDate = document.getElementById('parts-order-date').value;
+                updates.receiveDate = document.getElementById('parts-receive-date').value;
                 
-                // แทรกรหัส PR เข้าไปในหมายเหตุเพื่อให้คนจ่ายงานทราบ
                 if (!ticket.symptom.includes('[ของมาแล้ว')) {
-                    ticket.symptom = `[ของมาแล้ว PR: ${ticket.prNumber}] ` + ticket.symptom;
+                    updates.symptom = `[ของมาแล้ว PR: ${updates.prNumber}] ` + ticket.symptom;
+                }
+                
+                try {
+                    const { error } = await supabase.from('tickets').update(updates).eq('id', id);
+                    if (error) throw error;
+                    Object.assign(ticket, updates);
+                } catch (err) {
+                    console.error('Error saving parts arrived:', err);
+                    alert('ไม่สามารถบันทึกข้อมูลได้');
+                    return;
                 }
             }
             
             closeModal('modal-parts-arrived');
             renderTables();
-            renderDashboard();
+            if(!document.getElementById('view-dashboard').classList.contains('hidden')) renderDashboard();
         }
 
         // --- Engineering Close Logic ---
@@ -1371,7 +1421,7 @@
         }
         function removePart(index) { currentParts.splice(index, 1); renderPartsList(); }
 
-        function saveEngClosing(e) {
+        async function saveEngClosing(e) {
             e.preventDefault();
             const id = document.getElementById('eng-close-id').value;
             const ticket = tickets.find(t => t.id === id);
@@ -1382,20 +1432,32 @@
             if(diffMs < 0) { alert('เวลาสิ้นสุดต้องมากกว่าเวลาเริ่มต้น'); return; }
 
             if(ticket) {
-                ticket.status = 'Waiting Verification'; // Change to Wait Req
-                ticket.rootCause = document.getElementById('eng-root-cause').value;
-                ticket.actionTaken = document.getElementById('eng-action').value;
-                ticket.partsUsed = currentParts;
-                ticket.partsTotalCost = currentParts.reduce((sum, p) => sum + p.total, 0);
-                ticket.actualDuration = (diffMs / (1000 * 60 * 60)).toFixed(2);
+                const updates = {};
+                updates.status = 'Waiting Verification';
+                updates.rootCause = document.getElementById('eng-root-cause').value;
+                updates.actionTaken = document.getElementById('eng-action').value;
+                updates.partsUsed = currentParts;
+                updates.partsTotalCost = currentParts.reduce((sum, p) => sum + p.total, 0);
+                updates.actualDuration = (diffMs / (1000 * 60 * 60)).toFixed(2);
                 
-                ticket.engOpCheck = document.querySelector('input[name="eng-op"]:checked').value;
-                ticket.engOpDetail = document.getElementById('eng-op-detail').value;
-                ticket.engCleanCheck = document.querySelector('input[name="eng-clean"]:checked').value;
-                ticket.engCleanDetail = document.getElementById('eng-clean-detail').value;
-                ticket.engCloseDate = document.getElementById('eng-close-date').value;
+                updates.engOpCheck = document.querySelector('input[name="eng-op"]:checked').value;
+                updates.engOpDetail = document.getElementById('eng-op-detail').value;
+                updates.engCleanCheck = document.querySelector('input[name="eng-clean"]:checked').value;
+                updates.engCleanDetail = document.getElementById('eng-clean-detail').value;
+                updates.engCloseDate = document.getElementById('eng-close-date').value;
+                
+                try {
+                    const { error } = await supabase.from('tickets').update(updates).eq('id', id);
+                    if (error) throw error;
+                    Object.assign(ticket, updates);
+                } catch (err) {
+                    console.error('Error saving eng close:', err);
+                    alert('ไม่สามารถบันทึกข้อมูลได้');
+                    return;
+                }
             }
-            closeModal('modal-eng-close'); renderTables();
+            closeModal('modal-eng-close'); 
+            renderTables();
         }
 
         // --- Requester Verify Logic ---
@@ -1413,10 +1475,9 @@
             document.getElementById('modal-req-verify').classList.remove('hidden');
         }
 
-        function saveReqClosing(e, actionType) {
+        async function saveReqClosing(e, actionType) {
             e.preventDefault();
             
-            // Check PIN and Name
             const pin = document.getElementById('req-close-pin').value;
             const name = document.getElementById('req-close-name').value.trim();
             
@@ -1433,23 +1494,34 @@
             const ticket = tickets.find(t => t.id === id);
             
             if(ticket) {
+                const updates = {};
                 if(actionType === 'Reject') {
                     const reason = document.getElementById('req-reject-reason').value.trim();
                     if(!reason) { alert('กรุณาระบุเหตุผลการ Reject ตีกลับงานให้ช่างแก้ไข'); return; }
-                    ticket.status = 'In Progress'; // Send back to Eng
-                    ticket.rejectReason = 'Reject: ' + reason;
+                    updates.status = 'In Progress';
+                    updates.rejectReason = 'Reject: ' + reason;
                 } else {
-                    // Approve
-                    ticket.status = 'Completed';
-                    ticket.reqOpCheck = document.querySelector('input[name="req-op"]:checked').value;
-                    ticket.reqOpDetail = document.getElementById('req-op-detail').value;
-                    ticket.reqCleanCheck = document.querySelector('input[name="req-clean"]:checked').value;
-                    ticket.reqCleanDetail = document.getElementById('req-clean-detail').value;
-                    ticket.reqCloseDate = document.getElementById('req-close-date').value;
-                    ticket.reqCloseName = name;
+                    updates.status = 'Completed';
+                    updates.reqOpCheck = document.querySelector('input[name="req-op"]:checked').value;
+                    updates.reqOpDetail = document.getElementById('req-op-detail').value;
+                    updates.reqCleanCheck = document.querySelector('input[name="req-clean"]:checked').value;
+                    updates.reqCleanDetail = document.getElementById('req-clean-detail').value;
+                    updates.reqCloseDate = document.getElementById('req-close-date').value;
+                    updates.reqCloseName = name;
+                }
+                
+                try {
+                    const { error } = await supabase.from('tickets').update(updates).eq('id', id);
+                    if (error) throw error;
+                    Object.assign(ticket, updates);
+                } catch (err) {
+                    console.error('Error saving req close:', err);
+                    alert('ไม่สามารถบันทึกข้อมูลได้');
+                    return;
                 }
             }
-            closeModal('modal-req-verify'); renderTables();
+            closeModal('modal-req-verify'); 
+            renderTables();
         }
 
         // --- Manager Auth Logic ---
@@ -1539,8 +1611,42 @@
 
         function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
 
+        // --- Supabase Data Fetching ---
+        async function fetchTickets() {
+            try {
+                const { data, error } = await supabase.from('tickets').select('*').order('created_at', { ascending: false });
+                if (error) throw error;
+                tickets = data || [];
+            } catch (err) {
+                console.error('Error fetching tickets:', err);
+                alert('ไม่สามารถโหลดข้อมูลจากระบบได้ กรุณาลองใหม่อีกครั้ง');
+            }
+        }
+
+        async function fetchTechnicians() {
+            try {
+                const { data, error } = await supabase.from('technicians').select('*').order('name', { ascending: true });
+                if (error) throw error;
+                techniciansList = data || [];
+                // Update technicians in local storage for legacy code fallback, if any
+                localStorage.setItem('technicians', JSON.stringify(techniciansList.map(t => t.name)));
+            } catch (err) {
+                console.error('Error fetching technicians:', err);
+            }
+        }
+
+        async function initApp() {
+            await fetchTechnicians();
+            await fetchTickets();
+            switchTab('home');
+            // initial render dashboard metrics if on dashboard
+            if(!document.getElementById('view-dashboard').classList.contains('hidden')) {
+                renderDashboard();
+            }
+        }
+
         // Initialize
-        switchTab('home');
+        initApp();
 
     </script>
 </body>
