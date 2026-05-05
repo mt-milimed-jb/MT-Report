@@ -8,6 +8,11 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Sarabun', sans-serif; background-color: #f3f4f6; }
@@ -97,8 +102,20 @@
                         <h3 class="text-lg font-bold text-gray-800 mb-1 group-hover:text-[#1f3a93] transition-colors drop-shadow-sm">Dashboard</h3>
                         <p class="text-xs text-gray-700 font-medium line-clamp-2">ดูสถิติสแตตัส, กราฟ, ค่าใช้จ่าย</p>
                     </div>
+                    </div>
+                <!-- Card 5 -->
+                <div onclick="switchTab('project')" class="relative overflow-hidden bg-white/70 backdrop-blur-md rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 cursor-pointer aspect-square group border border-white/50 flex flex-col justify-center items-center text-center p-6">
+                    <div class="absolute inset-0 bg-gradient-to-br from-indigo-100/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    <div class="relative z-10 flex flex-col items-center w-full">
+                        <div class="w-16 h-16 bg-indigo-500/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-[#1f3a93] group-hover:shadow-lg transition-all duration-300">
+                            <i class="fas fa-project-diagram text-indigo-600 text-2xl group-hover:text-white transition-colors duration-300"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-1 group-hover:text-[#1f3a93] transition-colors drop-shadow-sm">Project Management</h3>
+                        <p class="text-xs text-gray-700 font-medium line-clamp-2">ระบบจัดการโปรเจกต์</p>
+                    </div>
                 </div>
             </div>
+
 
             <!-- Hero Text -->
             <div class="mt-auto pt-16 text-center">
@@ -111,6 +128,11 @@
     <!-- Main Content for Other Views -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         
+        <!-- View: Project Management -->
+        <div id="view-project" class="hidden -mx-4 sm:-mx-6 lg:-mx-8 -my-10">
+            <div id="pm-root"></div>
+        </div>
+
         <!-- View 0: Dashboard -->
         <div id="view-dashboard" class="hidden">
             <!-- KPIs -->
@@ -1040,7 +1062,7 @@
 
         // --- Core UI & Tabs ---
         function switchTab(tabId) {
-            ['home', 'dashboard', 'requester', 'maintenance', 'manager'].forEach(id => {
+            ['home', 'dashboard', 'requester', 'maintenance', 'manager', 'project'].forEach(id => {
                 const view = document.getElementById(`view-${id}`);
                 if (view) view.classList.add('hidden');
             });
@@ -1667,6 +1689,857 @@
         // Initialize
         initApp();
 
+    </script>
+    
+    <!-- React Project Management Dashboard Code -->
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Custom hook for localStorage persistence
+        function useStickyState(defaultValue, key) {
+            const [value, setValue] = useState(() => {
+                const stickyValue = window.localStorage.getItem(key);
+                return stickyValue !== null ? JSON.parse(stickyValue) : defaultValue;
+            });
+            useEffect(() => {
+                window.localStorage.setItem(key, JSON.stringify(value));
+            }, [key, value]);
+            return [value, setValue];
+        }
+
+        const IconBuilder = (iconClass) => ({ size = 24, className = '', title }) => (
+            <i className={`ph ${iconClass} ${className}`} style={{ fontSize: size }} title={title}></i>
+        );
+        const IconBuilderFill = (iconClass) => ({ size = 24, className = '', title }) => (
+            <i className={`ph-fill ${iconClass} ${className}`} style={{ fontSize: size }} title={title}></i>
+        );
+
+        const LayoutDashboard = IconBuilderFill('ph-squares-four');
+        const CalendarDays = IconBuilder('ph-calendar-blank');
+        const Plus = IconBuilder('ph-plus');
+        const AlertCircle = IconBuilderFill('ph-warning-circle');
+        const CheckCircle2 = IconBuilderFill('ph-check-circle');
+        const Clock = IconBuilderFill('ph-clock');
+        const X = IconBuilder('ph-x');
+        const FileText = IconBuilder('ph-file-text');
+        const Briefcase = IconBuilderFill('ph-briefcase');
+        const Calendar = IconBuilder('ph-calendar');
+        const Banknote = IconBuilder('ph-money');
+        const ShoppingCart = IconBuilder('ph-shopping-cart');
+        const PieChart = IconBuilderFill('ph-chart-pie-slice');
+        const BarChart3 = IconBuilder('ph-chart-bar');
+        const TrendingUp = IconBuilder('ph-trend-up');
+        const Settings = IconBuilder('ph-gear');
+        const Trash2 = IconBuilder('ph-trash');
+        const ChevronDown = IconBuilder('ph-caret-down');
+        const ChevronRight = IconBuilder('ph-caret-right');
+        const FolderOpen = IconBuilderFill('ph-folder-open');
+
+        const formatDate = (dateStr) => {
+            if (!dateStr) return '-';
+            const d = new Date(dateStr);
+            return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        };
+
+        const calculateDelay = (dueDate, actualDate) => {
+            if (!dueDate || !actualDate) return 0;
+            const diff = new Date(actualDate) - new Date(dueDate);
+            return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+        };
+
+        const todayStr = new Date().toISOString().split('T')[0];
+
+        const initialTasks = [
+            { id: 1, project: 'Audit Plan 2026', category: 'Quality Assessment', title: 'Prepare ISO 9001:2015', dept: 'QA', status: 'ongoing', startDate: '2026-05-02', endDate: '2026-05-15', actualEndDate: '', blocker: '', details: 'Day 2: Team meeting\nDay 10: Internal audit', budget: 5000, prStartDate: '', prEndDate: '' },
+            { id: 2, project: 'Project CEP (Cost Efficiency)', category: 'Efficiency Improvement', title: 'Reduce waste in Line A', dept: 'PD', status: 'delayed', startDate: '2026-05-05', endDate: '2026-05-20', actualEndDate: '', blocker: 'Waiting for Supplier spec change', details: 'Daily data collection', budget: 0, prStartDate: '2026-05-01', prEndDate: '2026-05-10' },
+            { id: 3, project: 'General Maintenance', category: 'Annual Maintenance', title: 'PM Press Machine', dept: 'MT', status: 'pending', startDate: '2026-05-22', endDate: '2026-05-25', actualEndDate: '', blocker: '', details: 'Waiting for production stop', budget: 45000, prStartDate: '2026-05-05', prEndDate: '2026-05-15' },
+            { id: 4, project: 'Plant Layout Improvement', category: 'Area Preparation', title: 'Relocate materials', dept: 'ST', status: 'completed', startDate: '2026-05-01', endDate: '2026-05-04', actualEndDate: '2026-05-04', blocker: '', details: '5S Completed', budget: 2000, prStartDate: '', prEndDate: '' },
+            { id: 6, project: 'Plant Layout Improvement', category: 'Area Preparation', title: 'Dismantle AC system', dept: 'MT', status: 'pending', startDate: '2026-05-05', endDate: '2026-05-08', actualEndDate: '', blocker: '', details: 'Cut power and dismantle', budget: 5000, prStartDate: '', prEndDate: '' },
+            { id: 5, project: 'Daily Operations', category: '', title: 'Adjust plan for urgent order', dept: 'PC', status: 'ongoing', startDate: '2026-05-12', endDate: '2026-05-18', actualEndDate: '', blocker: '', details: 'Coordinate with sales', budget: 0, prStartDate: '', prEndDate: '' },
+            { id: 7, project: 'Sustainability Initatives', category: 'Special Project', title: 'Install Solar Roof', dept: 'Other', status: 'cancelled', startDate: '2026-05-01', endDate: '2026-05-31', actualEndDate: '2026-05-10', blocker: 'Budget not approved', details: '', budget: 5000000, prStartDate: '', prEndDate: '' },
+        ];
+
+        const initialProjects = ['Audit Plan 2026', 'Project CEP (Cost Efficiency)', 'General Maintenance', 'Plant Layout Improvement', 'Daily Operations', 'Sustainability Initatives', 'Other'];
+        const initialDepartments = ['QA', 'QC', 'MT', 'PD', 'ST', 'PC', 'HR', 'Other'];
+
+        const initialStatuses = [
+            { id: 'completed', label: 'Completed (เสร็จสิ้น)', color: 'bg-green-100 text-green-700 border-green-200', hex: '#22c55e' },
+            { id: 'ongoing', label: 'Ongoing (กำลังดำเนินการ)', color: 'bg-blue-100 text-blue-700 border-blue-200', hex: '#3b82f6' },
+            { id: 'pending', label: 'Pending (รอดำเนินการ)', color: 'bg-gray-100 text-gray-700 border-gray-200', hex: '#9ca3af' },
+            { id: 'delayed', label: 'Delayed (ล่าช้า)', color: 'bg-red-100 text-red-700 border-red-200', hex: '#ef4444' },
+            { id: 'cancelled', label: 'Cancelled (ยกเลิก)', color: 'bg-slate-200 text-slate-800 border-slate-300', hex: '#475569' }
+        ];
+
+        const colorOptions = [
+            { id: 'green', name: 'Green', hex: '#22c55e', classes: 'bg-green-100 text-green-700 border-green-200' },
+            { id: 'blue', name: 'Blue', hex: '#3b82f6', classes: 'bg-blue-100 text-blue-700 border-blue-200' },
+            { id: 'red', name: 'Red', hex: '#ef4444', classes: 'bg-red-100 text-red-700 border-red-200' },
+            { id: 'yellow', name: 'Yellow', hex: '#eab308', classes: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+            { id: 'purple', name: 'Purple', hex: '#a855f7', classes: 'bg-purple-100 text-purple-700 border-purple-200' },
+            { id: 'slate', name: 'Dark Grey', hex: '#475569', classes: 'bg-slate-200 text-slate-800 border-slate-300' },
+            { id: 'pink', name: 'Pink', hex: '#ec4899', classes: 'bg-pink-100 text-pink-700 border-pink-200' },
+        ];
+
+        const monthsList = [
+            { id: 1, name: 'January' }, { id: 2, name: 'February' }, { id: 3, name: 'March' }, { id: 4, name: 'April' },
+            { id: 5, name: 'May' }, { id: 6, name: 'June' }, { id: 7, name: 'July' }, { id: 8, name: 'August' },
+            { id: 9, name: 'September' }, { id: 10, name: 'October' }, { id: 11, name: 'November' }, { id: 12, name: 'December' }
+        ];
+
+        function App() {
+            const [activeTab, setActiveTab] = useStickyState('dashboard', 'pm_activetab');
+            const [tasks, setTasks] = useStickyState(initialTasks, 'pm_tasks');
+            const [projectList, setProjectList] = useStickyState(initialProjects, 'pm_projects');
+            const [departments, setDepartments] = useStickyState(initialDepartments, 'pm_depts');
+            const [statuses, setStatuses] = useStickyState(initialStatuses, 'pm_statuses');
+            const [expandedProjects, setExpandedProjects] = useStickyState(initialProjects, 'pm_expanded');
+
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            const [editingTask, setEditingTask] = useState(null);
+            const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+            const [newProject, setNewProject] = useState('');
+            const [newDept, setNewDept] = useState('');
+            const [newStatus, setNewStatus] = useState({ label: '', colorTheme: 'blue' });
+
+            const currentRealDate = new Date();
+            const [selectedMonth, setSelectedMonth] = useStickyState(currentRealDate.getMonth() + 1, 'pm_month');
+            const [selectedYear, setSelectedYear] = useStickyState(currentRealDate.getFullYear(), 'pm_year');
+
+            const [formData, setFormData] = useState({
+                project: projectList[0] || '',
+                category: '',
+                title: '',
+                dept: departments[0] || 'PD',
+                status: statuses[1]?.id || 'ongoing',
+                startDate: todayStr,
+                endDate: todayStr,
+                actualEndDate: '',
+                blocker: '',
+                details: '',
+                budget: 0,
+                prStartDate: '',
+                prEndDate: ''
+            });
+
+            // Filtering
+            const monthTasks = tasks.filter(t => {
+                const start = new Date(t.startDate);
+                const end = new Date(t.endDate);
+                const mStart = new Date(selectedYear, selectedMonth - 1, 1);
+                const mEnd = new Date(selectedYear, selectedMonth, 0);
+                return start <= mEnd && end >= mStart;
+            });
+
+            const yearlyTasks = tasks.filter(t => {
+                const startYear = new Date(t.startDate).getFullYear();
+                const endYear = new Date(t.endDate).getFullYear();
+                return selectedYear >= startYear && selectedYear <= endYear;
+            });
+
+            // Statistics
+            const yearlyStats = {
+                total: yearlyTasks.length,
+                completed: yearlyTasks.filter(t => t.status === 'completed').length,
+                ongoing: yearlyTasks.filter(t => t.status === 'ongoing').length,
+                delayed: yearlyTasks.filter(t => t.status === 'delayed').length,
+            };
+
+            const monthCounts = Array(12).fill(0);
+            for (let m = 0; m < 12; m++) {
+                const mStart = new Date(selectedYear, m, 1);
+                const mEnd = new Date(selectedYear, m + 1, 0);
+                monthCounts[m] = yearlyTasks.filter(t => new Date(t.startDate) <= mEnd && new Date(t.endDate) >= mStart).length;
+            }
+            const maxMonthCount = Math.max(...monthCounts, 1);
+
+            const deptCounts = {};
+            yearlyTasks.forEach(t => { deptCounts[t.dept] = (deptCounts[t.dept] || 0) + 1; });
+            const sortedDepts = Object.entries(deptCounts).sort((a,b) => b[1] - a[1]);
+            const mostDept = sortedDepts.length > 0 ? sortedDepts[0] : null;
+            const leastDept = sortedDepts.length > 0 ? sortedDepts[sortedDepts.length - 1] : null;
+
+            // Modal Handlers
+            const handleOpenModal = (task = null) => {
+                if (task) {
+                    setEditingTask(task.id);
+                    setFormData(task);
+                } else {
+                    setEditingTask(null);
+                    setFormData({ project: projectList[0] || '', category: '', title: '', dept: departments[0] || '', status: statuses.length > 1 ? statuses[1].id : statuses[0]?.id || '', startDate: todayStr, endDate: todayStr, actualEndDate: '', blocker: '', details: '', budget: 0, prStartDate: '', prEndDate: '' });
+                }
+                setIsModalOpen(true);
+            };
+
+            const handleSaveTask = () => {
+                if (!formData.title.trim()) return alert('กรุณาระบุชื่องาน');
+                if (!formData.project.trim()) return alert('กรุณาเลือกโปรเจคหลัก');
+                if (formData.startDate > formData.endDate) return alert('วันเริ่มต้นต้องไม่มากกว่าวันสิ้นสุด (Due Date)');
+                if (formData.prStartDate && formData.prEndDate && formData.prStartDate > formData.prEndDate) return alert('วันที่เริ่ม PR ต้องไม่มากกว่าวันที่จบ PR');
+
+                if (editingTask) {
+                    setTasks(tasks.map(t => t.id === editingTask ? { ...formData, id: t.id } : t));
+                } else {
+                    setTasks([...tasks, { ...formData, id: Date.now() }]);
+                }
+                setIsModalOpen(false);
+            };
+
+            const handleDeleteTask = (id) => {
+                if(confirm('ต้องการลบงานนี้ใช่หรือไม่? (Are you sure?)')) {
+                    setTasks(tasks.filter(t => t.id !== id));
+                    setIsModalOpen(false);
+                }
+            };
+
+            // Settings Handlers
+            const addProject = () => {
+                if (newProject.trim() && !projectList.includes(newProject.trim())) {
+                    setProjectList([...projectList, newProject.trim()]);
+                    setExpandedProjects([...expandedProjects, newProject.trim()]);
+                    setNewProject('');
+                }
+            };
+            const removeProject = (p) => { if(confirm(`ยืนยันการลบโปรเจค ${p}?`)) setProjectList(projectList.filter(x => x !== p)); };
+            const addDept = () => {
+                if (newDept.trim() && !departments.includes(newDept.trim())) {
+                    setDepartments([...departments, newDept.trim()]);
+                    setNewDept('');
+                }
+            };
+            const removeDept = (d) => { if(confirm(`ยืนยันการลบแผนก ${d}?`)) setDepartments(departments.filter(x => x !== d)); };
+            const addStatus = () => {
+                if (newStatus.label.trim()) {
+                    const id = `status_${Date.now()}`;
+                    const colorInfo = colorOptions.find(c => c.id === newStatus.colorTheme) || colorOptions[1];
+                    setStatuses([...statuses, { id, label: newStatus.label.trim(), color: colorInfo.classes, hex: colorInfo.hex }]);
+                    setNewStatus({ label: '', colorTheme: 'blue' });
+                }
+            };
+            const removeStatus = (id) => { if(confirm('ยืนยันการลบสถานะนี้?')) setStatuses(statuses.filter(x => x.id !== id)); };
+            const toggleProjectExpansion = (projName) => {
+                setExpandedProjects(prev => prev.includes(projName) ? prev.filter(p => p !== projName) : [...prev, projName]);
+            };
+
+            // Pie Chart String
+            let conicString = 'conic-gradient(#f3f4f6 100%)';
+            const totalMonthTasks = monthTasks.length;
+            if (totalMonthTasks > 0) {
+                let currentPerc = 0;
+                const segments = statuses.map(s => {
+                    const count = monthTasks.filter(t => t.status === s.id).length;
+                    const perc = (count / totalMonthTasks) * 100;
+                    const segment = `${s.hex} ${currentPerc}% ${currentPerc + perc}%`;
+                    currentPerc += perc;
+                    return count > 0 ? segment : null;
+                }).filter(Boolean);
+                if(segments.length > 0) conicString = `conic-gradient(${segments.join(', ')})`;
+            }
+
+            // Render Views
+            const renderDashboard = () => (
+                <div className="space-y-6">
+                    {/* แถวที่ 1 */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center relative overflow-hidden">
+                            <div className="absolute right-0 bottom-0 opacity-5 p-4"><Briefcase size={80} /></div>
+                            <p className="text-sm text-gray-500 font-bold mb-1 z-10">Total Projects <span className="font-normal">(โครงการทั้งหมด)</span></p>
+                            <p className="text-4xl font-black text-gray-800 z-10">{yearlyStats.total}</p>
+                        </div>
+                        <div className="bg-blue-50 p-5 rounded-xl shadow-sm border border-blue-100 flex flex-col justify-center relative overflow-hidden">
+                            <div className="absolute right-0 bottom-0 opacity-10 p-4"><Clock size={80} className="text-blue-600" /></div>
+                            <p className="text-sm text-blue-700 font-bold mb-1 z-10">Ongoing <span className="font-normal">(กำลังดำเนินการ)</span></p>
+                            <p className="text-4xl font-black text-blue-700 z-10">{yearlyStats.ongoing}</p>
+                        </div>
+                        <div className="bg-green-50 p-5 rounded-xl shadow-sm border border-green-100 flex flex-col justify-center relative overflow-hidden">
+                            <div className="absolute right-0 bottom-0 opacity-10 p-4"><CheckCircle2 size={80} className="text-green-600" /></div>
+                            <p className="text-sm text-green-700 font-bold mb-1 z-10">Completed <span className="font-normal">(เสร็จสิ้นแล้ว)</span></p>
+                            <p className="text-4xl font-black text-green-700 z-10">{yearlyStats.completed}</p>
+                        </div>
+                        <div className="bg-red-50 p-5 rounded-xl shadow-sm border border-red-100 flex flex-col justify-center relative overflow-hidden">
+                            <div className="absolute right-0 bottom-0 opacity-10 p-4"><AlertCircle size={80} className="text-red-600" /></div>
+                            <p className="text-sm text-red-700 font-bold mb-1 z-10">Delayed/Issues <span className="font-normal">(ติดปัญหา/ล่าช้า)</span></p>
+                            <p className="text-4xl font-black text-red-700 z-10">{yearlyStats.delayed}</p>
+                        </div>
+                    </div>
+
+                    {/* แถวที่ 2 */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col lg:col-span-1">
+                            <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-sm">
+                                <BarChart3 size={18} className="text-indigo-600"/> Projects per Month <span className="text-xs font-normal text-gray-500">(โครงการแต่ละเดือน)</span>
+                            </h3>
+                            <div className="flex-1 flex items-end gap-1.5 h-32 mt-2">
+                                {monthCounts.map((count, idx) => (
+                                    <div key={idx} className="flex-1 flex flex-col items-center group h-full justify-end">
+                                        <div className="w-full bg-indigo-100 rounded-t-sm relative group-hover:bg-indigo-500 transition-colors" 
+                                            style={{ height: `${count > 0 ? Math.max((count/maxMonthCount)*100, 10) : 0}%` }}>
+                                            <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-gray-600 opacity-0 group-hover:opacity-100 bg-white shadow-sm px-1.5 py-0.5 rounded">{count}</span>
+                                        </div>
+                                        <span className={`text-[9px] mt-1 ${selectedMonth === idx + 1 ? 'font-bold text-indigo-600' : 'text-gray-500'}`}>
+                                            {monthsList[idx].name.substring(0,3)}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col lg:col-span-1">
+                            <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-sm">
+                                <TrendingUp size={18} className="text-indigo-600"/> Department Ranking <span className="text-xs font-normal text-gray-500">(อันดับรายแผนก)</span>
+                            </h3>
+                            {mostDept ? (
+                                <div className="flex flex-col justify-center h-full space-y-3">
+                                    <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-100">
+                                        <div>
+                                            <p className="text-[10px] text-red-600 font-bold mb-0.5 uppercase tracking-wider">🔥 Busiest (งานชุกที่สุด)</p>
+                                            <p className="font-bold text-gray-800 text-sm">Dept: {mostDept[0]}</p>
+                                        </div>
+                                        <div className="text-xl font-black text-red-600">{mostDept[1]} <span className="text-xs font-normal">tasks</span></div>
+                                    </div>
+                                    {leastDept && mostDept[0] !== leastDept[0] ? (
+                                        <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-100">
+                                            <div>
+                                                <p className="text-[10px] text-green-600 font-bold mb-0.5 uppercase tracking-wider">🧊 Lightest (งานน้อยที่สุด)</p>
+                                                <p className="font-bold text-gray-800 text-sm">Dept: {leastDept[0]}</p>
+                                            </div>
+                                            <div className="text-xl font-black text-green-600">{leastDept[1]} <span className="text-xs font-normal">tasks</span></div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-center p-3 border border-dashed border-gray-200 rounded-lg h-full bg-gray-50">
+                                            <span className="text-xs text-gray-400">Not enough data</span>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">No project data for this year</div>
+                            )}
+                        </div>
+
+                        <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center lg:col-span-1 min-h-[200px]">
+                            <h3 className="text-gray-800 font-bold mb-2 w-full text-left flex items-center gap-2 text-sm">
+                                <PieChart size={18} className="text-indigo-600"/> Tasks in {monthsList[selectedMonth-1].name} <span className="text-xs font-normal text-gray-500">(สัดส่วนงานเดือนนี้)</span>
+                            </h3>
+                            <div className="relative w-32 h-32 rounded-full flex-shrink-0 my-2" style={{ background: conicString }}>
+                                <div className="absolute inset-2.5 bg-white rounded-full flex flex-col items-center justify-center shadow-inner">
+                                    <span className="text-2xl font-bold text-gray-800">{totalMonthTasks}</span>
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap justify-center gap-2 mt-2 w-full max-h-16 overflow-y-auto">
+                                {statuses.map(s => {
+                                    const count = monthTasks.filter(t => t.status === s.id).length;
+                                    if (count === 0) return null;
+                                    return (
+                                        <span key={s.id} className="text-[10px] font-medium text-gray-600 flex items-center gap-1">
+                                            <span className="w-2 h-2 rounded-full" style={{backgroundColor: s.hex}}></span> {s.label.split('(')[0].trim()} ({count})
+                                        </span>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* แถวที่ 3 */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* งานติดปัญหา */}
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+                            <div className="bg-red-50 px-5 py-4 border-b border-red-100 flex items-center gap-2">
+                                <AlertCircle className="text-red-600" size={20} />
+                                <h3 className="font-semibold text-red-800">Blockers & Delayed <span className="font-normal text-sm">(งานที่ติดปัญหา/ล่าช้า)</span></h3>
+                            </div>
+                            <div className="p-0 flex-1 overflow-y-auto max-h-[400px]">
+                                {monthTasks.filter(t => t.status === 'delayed' || t.blocker || calculateDelay(t.endDate, t.actualEndDate) > 0).length === 0 ? (
+                                    <div className="p-10 flex flex-col items-center justify-center text-gray-400">
+                                        <CheckCircle2 size={40} className="mb-2 opacity-50"/>
+                                        <p>Great! No delayed tasks or blockers this month.</p>
+                                    </div>
+                                ) : (
+                                    <ul className="divide-y divide-gray-100">
+                                        {monthTasks.filter(t => t.status === 'delayed' || t.blocker || calculateDelay(t.endDate, t.actualEndDate) > 0).map(task => (
+                                            <li key={task.id} className="p-5 hover:bg-gray-50 transition">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div className="flex flex-col gap-1 pr-2">
+                                                        <span className="text-[10px] font-bold text-gray-500">{task.project}</span>
+                                                        {task.category && <span className="text-xs font-bold text-indigo-700">{task.category}</span>}
+                                                        <div className="flex items-center gap-2 flex-wrap mt-1">
+                                                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-800 text-white">{task.dept}</span>
+                                                            <h4 className="font-medium text-gray-900 text-sm">{task.title}</h4>
+                                                        </div>
+                                                    </div>
+                                                    <button onClick={() => handleOpenModal(task)} className="text-xs text-indigo-600 hover:underline flex-shrink-0">Details</button>
+                                                </div>
+                                                
+                                                <div className="text-xs text-gray-500 mb-2 flex flex-col gap-1.5 bg-gray-50 p-2 rounded border border-gray-100">
+                                                    <div className="flex items-center gap-1"><Calendar size={12}/> <strong>Plan:</strong> {formatDate(task.startDate)} - {formatDate(task.endDate)}</div>
+                                                    {task.actualEndDate && (
+                                                        <div className="flex items-center gap-1 font-medium text-blue-700">
+                                                            <CheckCircle2 size={12}/> <strong>Actual End:</strong> {formatDate(task.actualEndDate)}
+                                                            {calculateDelay(task.endDate, task.actualEndDate) > 0 && (
+                                                                <span className="text-red-600 ml-1 bg-red-100 px-1.5 py-0.5 rounded-full text-[10px]">(Delayed {calculateDelay(task.endDate, task.actualEndDate)} days)</span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                    
+                                                    {task.prStartDate && task.prEndDate && (
+                                                        <span className="flex items-center gap-1 text-orange-600 font-medium mt-1">
+                                                            <ShoppingCart size={12}/> 
+                                                            PR Lead Time: {Math.ceil((new Date(task.prEndDate) - new Date(task.prStartDate)) / (1000 * 60 * 60 * 24))} days
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {task.blocker && (
+                                                    <div className="mt-2 bg-red-50 text-red-700 text-xs p-2.5 rounded-lg border border-red-100 flex gap-2">
+                                                        <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
+                                                        <p><strong>Blocker:</strong> {task.blocker}</p>
+                                                    </div>
+                                                )}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* งานดำเนินการ */}
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+                            <div className="bg-blue-50 px-5 py-4 border-b border-blue-100 flex items-center gap-2">
+                                <Clock className="text-blue-600" size={20} />
+                                <h3 className="font-semibold text-blue-800">Ongoing Tasks <span className="font-normal text-sm">(งานที่กำลังดำเนินการ)</span></h3>
+                            </div>
+                            <div className="p-0 flex-1 overflow-y-auto max-h-[400px]">
+                                <ul className="divide-y divide-gray-100">
+                                    {monthTasks.filter(t => t.status === 'ongoing' || t.status === 'pending').map(task => (
+                                        <li key={task.id} className="p-5 hover:bg-gray-50 transition flex justify-between items-center">
+                                            <div className="pr-4">
+                                                <span className="text-[10px] font-bold text-gray-500 block mb-1">{task.project}</span>
+                                                {task.category && <div className="text-[10px] font-bold text-indigo-700 mb-1">{task.category}</div>}
+                                                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-200 text-gray-700">{task.dept}</span>
+                                                    <h4 className="font-medium text-gray-900 text-sm">{task.title}</h4>
+                                                </div>
+                                                
+                                                <div className="text-xs text-gray-500 flex flex-col gap-1.5 mt-2 bg-gray-50 p-2 rounded border border-gray-100">
+                                                    <span className="flex items-center gap-1"><Calendar size={12}/> <strong>Plan:</strong> {formatDate(task.startDate)} - {formatDate(task.endDate)}</span>
+                                                    {task.actualEndDate && (
+                                                        <div className="flex items-center gap-1 font-medium text-blue-700">
+                                                            <CheckCircle2 size={12}/> <strong>Actual End:</strong> {formatDate(task.actualEndDate)}
+                                                            {calculateDelay(task.endDate, task.actualEndDate) > 0 && (
+                                                                <span className="text-red-600 ml-1 bg-red-100 px-1.5 py-0.5 rounded-full text-[10px]">(Delayed {calculateDelay(task.endDate, task.actualEndDate)} days)</span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                    {task.prStartDate && task.prEndDate && (
+                                                        <span className="flex items-center gap-1 text-orange-600 font-medium">
+                                                            <ShoppingCart size={12}/> 
+                                                            PR Lead Time: {Math.ceil((new Date(task.prEndDate) - new Date(task.prStartDate)) / (1000 * 60 * 60 * 24))} days
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <button onClick={() => handleOpenModal(task)} className="text-gray-400 hover:text-indigo-600 flex-shrink-0 bg-gray-50 p-2 rounded-full"><FileText size={18} /></button>
+                                        </li>
+                                    ))}
+                                    {monthTasks.filter(t => t.status === 'ongoing' || t.status === 'pending').length === 0 && (
+                                        <li className="p-10 text-center text-gray-400">No ongoing or pending tasks this month</li>
+                                    )}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            const renderTimeline = () => {
+                const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+                const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
+                const projectsData = {};
+                projectList.forEach(p => { projectsData[p] = { allTasks: [], monthTasks: [], minDate: null, maxDate: null, categories: {} }; });
+                
+                tasks.forEach(t => {
+                    const p = t.project || 'Other';
+                    if (!projectsData[p]) projectsData[p] = { allTasks: [], monthTasks: [], minDate: null, maxDate: null, categories: {} };
+                    projectsData[p].allTasks.push(t);
+                    if (!projectsData[p].minDate || t.startDate < projectsData[p].minDate) projectsData[p].minDate = t.startDate;
+                    if (!projectsData[p].maxDate || t.endDate > projectsData[p].maxDate) projectsData[p].maxDate = t.endDate;
+                });
+
+                monthTasks.forEach(task => {
+                    const p = task.project || 'Other';
+                    const cat = task.category || 'General Tasks';
+                    if (!projectsData[p].categories[cat]) projectsData[p].categories[cat] = [];
+                    projectsData[p].categories[cat].push(task);
+                    projectsData[p].monthTasks.push(task);
+                });
+
+                const activeProjects = Object.entries(projectsData).filter(([projName, data]) => {
+                    if (data.monthTasks.length > 0) return true;
+                    if (data.minDate && data.maxDate) {
+                        const mStart = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
+                        const mEnd = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
+                        if (data.minDate <= mEnd && data.maxDate >= mStart) return true;
+                    }
+                    return false;
+                });
+
+                return (
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col h-[calc(100vh-180px)] min-h-[500px]">
+                        <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 rounded-t-xl flex-wrap gap-4">
+                            <div>
+                                <h2 className="text-lg font-bold text-gray-800">Gantt Chart (แผนการทำงาน)</h2>
+                                <p className="text-xs text-gray-500">Click on project name to expand tasks (คลิกที่ชื่อโปรเจคเพื่อดูงานย่อย)</p>
+                            </div>
+                            <button 
+                                onClick={() => handleOpenModal()}
+                                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition shadow-sm text-sm"
+                            >
+                                <Plus size={16} /> Add Task / Project
+                            </button>
+                        </div>
+
+                        <div className="flex-1 p-2 md:p-4 overflow-y-auto overflow-x-hidden">
+                            <div className="w-full">
+                                <div className="flex border-b-2 border-gray-300 pb-2 mb-2 sticky top-0 bg-white z-10">
+                                    <div className="w-[30%] md:w-1/4 font-semibold text-gray-600 text-xs pl-2">Project / Task</div>
+                                    <div className="w-10 md:w-16 text-center font-semibold text-gray-600 text-[10px] md:text-xs">Dept</div>
+                                    <div className="hidden md:block w-20 text-center font-semibold text-gray-600 text-xs">Status</div>
+                                    <div className="flex-1 flex">
+                                        {daysArray.map(day => (
+                                            <div key={day} className="flex-1 text-center text-[8px] md:text-[10px] font-bold text-gray-400">{day}</div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                    {activeProjects.map(([projName, projData]) => {
+                                        const isExpanded = expandedProjects.includes(projName);
+                                        return (
+                                            <div key={projName} className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                                                <div 
+                                                    className="flex items-center bg-slate-800 text-white p-1 cursor-pointer hover:bg-slate-700 transition"
+                                                    onClick={() => toggleProjectExpansion(projName)}
+                                                >
+                                                    <div className="w-[30%] md:w-1/4 flex items-center gap-1 pl-1 pr-2 truncate">
+                                                        {isExpanded ? <ChevronDown size={16} className="flex-shrink-0 text-slate-300"/> : <ChevronRight size={16} className="flex-shrink-0 text-slate-300"/>}
+                                                        <FolderOpen size={14} className="flex-shrink-0 text-blue-300 mr-1"/>
+                                                        <span className="font-bold text-xs md:text-sm truncate" title={projName}>{projName}</span>
+                                                    </div>
+                                                    
+                                                    <div className="w-10 md:w-16"></div>
+                                                    <div className="hidden md:block w-20 text-center px-1">
+                                                        <span className="text-[10px] text-slate-300">{projData.allTasks.length} tasks</span>
+                                                    </div>
+
+                                                    <div className="flex-1 flex h-6 relative bg-slate-900/50 rounded mx-1 overflow-hidden">
+                                                        {daysArray.map(day => {
+                                                            const currentCellDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                                            const isProjDay = projData.minDate && projData.maxDate && currentCellDate >= projData.minDate && currentCellDate <= projData.maxDate;
+                                                            const isProjStart = currentCellDate === projData.minDate;
+                                                            const isProjEnd = currentCellDate === projData.maxDate;
+                                                            return (
+                                                                <div 
+                                                                    key={day} 
+                                                                    className={`flex-1 border-r border-slate-700/30 last:border-r-0
+                                                                        ${isProjDay ? 'bg-indigo-500' : 'bg-transparent'}
+                                                                        ${isProjStart ? 'rounded-l-sm' : ''} 
+                                                                        ${isProjEnd ? 'rounded-r-sm' : ''}
+                                                                    `}
+                                                                    title={isProjDay ? `Project Span: ${formatDate(projData.minDate)} to ${formatDate(projData.maxDate)}` : ''}
+                                                                />
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+
+                                                {isExpanded && (
+                                                    <div className="bg-white">
+                                                        {Object.entries(projData.categories).map(([category, tasksInCategory]) => (
+                                                            <div key={category} className="border-t border-gray-100 first:border-t-0">
+                                                                <div className="flex py-1.5 px-2 bg-indigo-50/50 border-b border-gray-100">
+                                                                    <span className="font-bold text-xs md:text-xs text-indigo-700 ml-6 uppercase tracking-wider">{category}</span>
+                                                                </div>
+                                                                <div className="space-y-0.5 pb-1">
+                                                                    {tasksInCategory.map(task => {
+                                                                        const statusStyle = statuses.find(s => s.id === task.status) || { label: 'Unknown', color: 'bg-gray-100 text-gray-700 border-gray-200', hex: '#9ca3af' };
+                                                                        return (
+                                                                            <div 
+                                                                                key={task.id} 
+                                                                                className="flex items-center group cursor-pointer hover:bg-gray-50 p-1 transition border-b border-gray-50 last:border-b-0"
+                                                                                onClick={() => handleOpenModal(task)}
+                                                                            >
+                                                                                <div className="w-[30%] md:w-1/4 pr-2 pl-8 md:pl-10 truncate flex flex-col justify-center">
+                                                                                    <span className="font-medium text-gray-800 text-[11px] md:text-sm truncate" title={task.title}>- {task.title}</span>
+                                                                                    {task.blocker && <span className="text-[9px] md:text-[10px] text-red-500 truncate flex items-center gap-1"><AlertCircle size={8}/> {task.blocker}</span>}
+                                                                                    {task.actualEndDate && calculateDelay(task.endDate, task.actualEndDate) > 0 && (
+                                                                                        <span className="text-[9px] md:text-[10px] text-orange-500 truncate mt-0.5">Delayed {calculateDelay(task.endDate, task.actualEndDate)} days</span>
+                                                                                    )}
+                                                                                </div>
+                                                                                <div className="w-10 md:w-16 text-center">
+                                                                                    <span className="px-1 md:px-2 py-0.5 md:py-1 bg-gray-100 border border-gray-200 text-gray-700 rounded text-[9px] md:text-[11px] font-bold inline-block truncate w-full">
+                                                                                        {task.dept}
+                                                                                    </span>
+                                                                                </div>
+                                                                                <div className="hidden md:block w-20 text-center px-1">
+                                                                                    <span className={`px-1 py-0.5 rounded text-[9px] md:text-[10px] font-medium border ${statusStyle.color} w-full block truncate`} title={statusStyle.label}>
+                                                                                        {statusStyle.label.split('(')[0].trim()}
+                                                                                    </span>
+                                                                                </div>
+                                                                                <div className="flex-1 flex h-5 md:h-6 relative bg-gray-50/80 rounded border border-gray-100 mr-1">
+                                                                                    {daysArray.map(day => {
+                                                                                        const currentCellDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                                                                        const isTaskDay = currentCellDate >= task.startDate && currentCellDate <= task.endDate;
+                                                                                        const isStart = currentCellDate === task.startDate;
+                                                                                        const isEnd = currentCellDate === task.endDate;
+                                                                                        return (
+                                                                                            <div 
+                                                                                                key={day} 
+                                                                                                style={{ backgroundColor: isTaskDay ? statusStyle.hex : undefined }}
+                                                                                                className={`flex-1 border-r border-gray-200/50 last:border-r-0 
+                                                                                                    ${isStart ? 'rounded-l-sm' : ''} 
+                                                                                                    ${isEnd ? 'rounded-r-sm' : ''}
+                                                                                                    ${isTaskDay ? 'opacity-90 group-hover:opacity-100 shadow-sm' : ''}
+                                                                                                    transition-opacity
+                                                                                                `}
+                                                                                                title={isTaskDay ? `${task.title} (${statusStyle.label.split('(')[0].trim()})` : ''}
+                                                                                            />
+                                                                                        );
+                                                                                    })}
+                                                                                </div>
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                        {Object.keys(projData.categories).length === 0 && (
+                                                            <div className="p-4 text-center text-gray-400 text-xs">No active tasks in this month</div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                    {activeProjects.length === 0 && (
+                                        <div className="p-10 text-center text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-xl">
+                                            No projects running in this month
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="min-h-screen bg-slate-100 font-sans text-gray-800 flex flex-col">
+                    <nav className="bg-white border-b border-gray-200 px-4 md:px-6 py-4 shadow-sm sticky top-0 z-20">
+                        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-indigo-600 p-2 rounded-lg"><LayoutDashboard className="text-white" size={24} /></div>
+                                <div>
+                                    <h1 className="text-xl font-bold text-gray-900 leading-tight">Project Management Dashboard</h1>
+                                    <p className="text-xs text-gray-500">ระบบติดตามและวางแผนการทำงานแบบองค์รวม</p>
+                                </div>
+                            </div>
+                            <div className="flex flex-col sm:flex-row gap-3 items-center">
+                                <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 p-1 rounded-lg">
+                                    <Calendar size={16} className="text-gray-500 ml-2" />
+                                    <select value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))} className="text-sm bg-transparent border-none focus:ring-0 outline-none text-indigo-700 font-bold cursor-pointer">
+                                        {monthsList.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                                    </select>
+                                    <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} className="text-sm bg-transparent border-none focus:ring-0 outline-none text-indigo-700 font-bold cursor-pointer">
+                                        {[2024, 2025, 2026, 2027, 2028].map(y => <option key={y} value={y}>{y}</option>)}
+                                    </select>
+                                </div>
+                                <div className="flex bg-gray-100 p-1 rounded-lg">
+                                    <button onClick={() => setActiveTab('dashboard')} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition ${activeTab === 'dashboard' ? 'bg-white shadow-sm text-indigo-700' : 'text-gray-600 hover:text-gray-900'}`}>
+                                        <LayoutDashboard size={16} /> Dashboard <span className="hidden sm:inline">(หน้าแรก)</span>
+                                    </button>
+                                    <button onClick={() => setActiveTab('planner')} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition ${activeTab === 'planner' ? 'bg-white shadow-sm text-indigo-700' : 'text-gray-600 hover:text-gray-900'}`}>
+                                        <CalendarDays size={16} /> Timeline <span className="hidden sm:inline">(แผนงาน)</span>
+                                    </button>
+                                </div>
+                                <button onClick={() => setIsSettingsOpen(true)} className="p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-800 rounded-lg transition border border-transparent hover:border-gray-200" title="Settings (ตั้งค่าระบบ)">
+                                    <Settings size={20} />
+                                </button>
+                            </div>
+                        </div>
+                    </nav>
+
+                    <main className="max-w-7xl mx-auto px-4 md:px-6 py-6 flex-1 w-full">
+                        {activeTab === 'dashboard' ? renderDashboard() : renderTimeline()}
+                    </main>
+
+                    {/* Modal สร้าง/แก้ไขงาน */}
+                    {isModalOpen && (
+                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+                            <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                                <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+                                    <h2 className="text-xl font-bold text-gray-800">{editingTask ? 'แก้ไขรายละเอียดงาน (Edit Task)' : 'เพิ่มงานย่อยใหม่ (New Task)'}</h2>
+                                    <button onClick={() => setIsModalOpen(false)} className="text-gray-500 hover:text-red-500 transition"><X size={24}/></button>
+                                </div>
+                                <div className="p-6 overflow-y-auto">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                        <div className="col-span-2 md:col-span-1">
+                                            <label className="block text-sm font-bold text-indigo-800 mb-1">โปรเจคหลัก (Project) *</label>
+                                            <select value={formData.project} onChange={(e) => setFormData({...formData, project: e.target.value})} className="w-full border-2 border-indigo-200 bg-indigo-50/30 p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-medium">
+                                                <option value="" disabled>-- เลือกโปรเจค --</option>
+                                                {projectList.map(p => <option key={p} value={p}>{p}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="col-span-2 md:col-span-1">
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">หมวดหมู่ / เฟสงาน (Category)</label>
+                                            <input type="text" value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="เช่น Phase 1, Area Prep..." />
+                                        </div>
+                                        <div className="col-span-2">
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">ชื่องานย่อย (Task Name) *</label>
+                                            <input type="text" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="เช่น ตัดรื้อสายระบบไฟฟ้า" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">แผนกที่รับผิดชอบ (Dept)</label>
+                                            <select value={formData.dept} onChange={(e) => setFormData({...formData, dept: e.target.value})} className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                                                {departments.map(d => <option key={d} value={d}>{d}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">สถานะปัจจุบัน (Status)</label>
+                                            <select value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})} className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                                                {statuses.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="col-span-2 md:col-span-1">
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">วันที่เริ่มต้นแผน (Start Date)</label>
+                                            <input type="date" value={formData.startDate} onChange={(e) => setFormData({...formData, startDate: e.target.value})} className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+                                        </div>
+                                        <div className="col-span-2 md:col-span-1">
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">วันที่สิ้นสุดแผน (Due Date)</label>
+                                            <input type="date" value={formData.endDate} onChange={(e) => setFormData({...formData, endDate: e.target.value})} className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+                                            {formData.startDate && formData.endDate && (
+                                                <p className="text-xs text-gray-500 mt-1">เวลาตามแผน: {Math.ceil((new Date(formData.endDate) - new Date(formData.startDate)) / (1000 * 60 * 60 * 24)) + 1} วัน</p>
+                                            )}
+                                        </div>
+                                        <div className="col-span-2 md:col-span-1">
+                                            <label className="block text-sm font-bold text-blue-700 mb-1">วันที่จบงานจริง (Actual End Date)</label>
+                                            <input type="date" value={formData.actualEndDate} onChange={(e) => setFormData({...formData, actualEndDate: e.target.value})} className="w-full border-2 border-blue-200 bg-blue-50/30 p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                                            {formData.endDate && formData.actualEndDate && calculateDelay(formData.endDate, formData.actualEndDate) > 0 && (
+                                                <p className="text-xs text-red-600 mt-1 font-bold">⚠️ ล่าช้ากว่าแผน {calculateDelay(formData.endDate, formData.actualEndDate)} วัน</p>
+                                            )}
+                                        </div>
+                                        <div className="col-span-2 mt-2 pt-4 border-t border-gray-100">
+                                            <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2"><ShoppingCart size={18}/> ข้อมูลงบประมาณและการสั่งซื้อ</h4>
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">งบประมาณ (Budget)</label>
+                                                    <input type="number" min="0" value={formData.budget} onChange={(e) => setFormData({...formData, budget: e.target.value})} className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="0" />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">วันที่เปิด PR</label>
+                                                    <input type="date" value={formData.prStartDate} onChange={(e) => setFormData({...formData, prStartDate: e.target.value})} className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">วันที่จบ PR (ของเข้า)</label>
+                                                    <input type="date" value={formData.prEndDate} onChange={(e) => setFormData({...formData, prEndDate: e.target.value})} className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+                                                    {formData.prStartDate && formData.prEndDate && (
+                                                        <p className="text-xs text-indigo-600 mt-1 font-medium">PR Lead time: {Math.ceil((new Date(formData.prEndDate) - new Date(formData.prStartDate)) / (1000 * 60 * 60 * 24))} วัน</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="col-span-2 mt-2">
+                                            <label className="block text-sm font-bold text-red-600 mb-1 flex items-center gap-1"><AlertCircle size={16} /> ปัญหาที่พบ / สาเหตุที่ล่าช้า (Blocker)</label>
+                                            <input type="text" value={formData.blocker} onChange={(e) => setFormData({...formData, blocker: e.target.value})} className="w-full border border-red-300 bg-red-50 p-2.5 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none text-red-800 placeholder-red-300" placeholder="ถ้าไม่มีปัญหา ให้เว้นว่างไว้..." />
+                                        </div>
+                                        <div className="col-span-2">
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">รายละเอียดงาน (Task Details)</label>
+                                            <textarea value={formData.details} onChange={(e) => setFormData({...formData, details: e.target.value})} rows={4} className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="เช่น วันที่ 1: ตรวจเช็คเครื่องจักร..." />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-between">
+                                    {editingTask ? <button onClick={() => handleDeleteTask(editingTask)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium transition">ลบงานนี้ (Delete)</button> : <div></div>}
+                                    <div className="flex gap-2">
+                                        <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg font-medium transition">ยกเลิก (Cancel)</button>
+                                        <button onClick={handleSaveTask} className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition shadow-sm">บันทึกข้อมูล (Save)</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Modal ตั้งค่า */}
+                    {isSettingsOpen && (
+                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+                            <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                                <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+                                    <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2"><Settings size={20}/> ตั้งค่าระบบ (Settings)</h2>
+                                    <button onClick={() => setIsSettingsOpen(false)} className="text-gray-500 hover:text-red-500 transition"><X size={24}/></button>
+                                </div>
+                                <div className="p-6 overflow-y-auto space-y-8">
+                                    <div>
+                                        <h3 className="text-lg font-bold text-indigo-900 mb-3 border-b pb-2 flex items-center gap-2"><Briefcase size={18}/> จัดการโปรเจคหลัก (Projects)</h3>
+                                        <div className="flex flex-wrap gap-2 mb-4">
+                                            {projectList.map(p => (
+                                                <span key={p} className="pl-3 pr-1 py-1 bg-indigo-50 border border-indigo-200 text-indigo-800 rounded-lg text-sm font-medium flex items-center gap-1">
+                                                    {p}
+                                                    <button onClick={() => removeProject(p)} className="text-indigo-400 hover:text-red-500 p-0.5 rounded-md hover:bg-white"><X size={14}/></button>
+                                                </span>
+                                            ))}
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <input type="text" value={newProject} onChange={e => setNewProject(e.target.value)} placeholder="พิมพ์ชื่อโปรเจคใหม่ (เช่น Project X)..." className="flex-1 border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+                                            <button onClick={addProject} className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">Add</button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-md font-semibold text-gray-800 mb-3 border-b pb-2">จัดการรายชื่อแผนก (Departments)</h3>
+                                        <div className="flex flex-wrap gap-2 mb-4">
+                                            {departments.map(dept => (
+                                                <span key={dept} className="pl-3 pr-1 py-1 bg-gray-100 border border-gray-200 text-gray-700 rounded-full text-sm font-medium flex items-center gap-1">
+                                                    {dept}
+                                                    <button onClick={() => removeDept(dept)} className="text-gray-400 hover:text-red-500 p-0.5 rounded-full hover:bg-white"><X size={14}/></button>
+                                                </span>
+                                            ))}
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <input type="text" value={newDept} onChange={e => setNewDept(e.target.value)} placeholder="พิมพ์ชื่อแผนกใหม่..." className="flex-1 border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+                                            <button onClick={addDept} className="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-900">Add</button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-md font-semibold text-gray-800 mb-3 border-b pb-2">จัดการสถานะโครงการ (Statuses)</h3>
+                                        <div className="space-y-2 mb-4">
+                                            {statuses.map(status => (
+                                                <div key={status.id} className="flex items-center justify-between p-2 bg-gray-50 border border-gray-100 rounded-lg">
+                                                    <span className={`px-3 py-1 rounded-full text-xs font-medium border ${status.color}`}>{status.label}</span>
+                                                    <button onClick={() => removeStatus(status.id)} className="text-gray-400 hover:text-red-500 p-1"><Trash2 size={16}/></button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                                            <p className="text-sm font-medium text-slate-800">เพิ่มสถานะใหม่</p>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                <input type="text" value={newStatus.label} onChange={e => setNewStatus({...newStatus, label: e.target.value})} placeholder="เช่น On Hold (ระงับชั่วคราว)" className="border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+                                                <select value={newStatus.colorTheme} onChange={e => setNewStatus({...newStatus, colorTheme: e.target.value})} className="border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
+                                                    {colorOptions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                                </select>
+                                            </div>
+                                            <button onClick={addStatus} className="w-full bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-900">Save new status</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 text-right">
+                                    <button onClick={() => setIsSettingsOpen(false)} className="px-6 py-2 bg-gray-800 hover:bg-gray-900 text-white rounded-lg font-medium transition shadow-sm">ปิดหน้าต่าง (Close)</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('pm-root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
