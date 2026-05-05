@@ -2009,14 +2009,25 @@
 
                                     return (
                                         <div className="flex flex-col">
-                                            {Object.entries(groupedTasks).map(([project, categories]) => (
+                                            {Object.entries(groupedTasks).map(([project, categories]) => {
+                                                const isExpanded = expandedProjects.includes(project);
+                                                return (
                                                 <div key={project} className="border-b border-gray-100 last:border-0 pb-2">
-                                                    <div className={`${themeConfig.folderBg} px-5 py-2.5 font-bold text-xs ${themeConfig.folderText} sticky top-0 z-10 backdrop-blur-sm flex items-center gap-2 border-b ${themeConfig.folderBorder}`}>
-                                                        <FolderOpen size={16} className={themeConfig.iconColor} />
-                                                        {project}
+                                                    <div 
+                                                        onClick={() => toggleProjectExpansion(project)}
+                                                        className={`cursor-pointer hover:opacity-90 transition-opacity ${themeConfig.folderBg} px-5 py-2.5 font-bold text-xs ${themeConfig.folderText} sticky top-0 z-10 backdrop-blur-sm flex items-center justify-between border-b ${themeConfig.folderBorder}`}
+                                                    >
+                                                        <div className="flex items-center gap-2">
+                                                            {isExpanded ? <FolderOpen size={16} className={themeConfig.iconColor} /> : <Folder size={16} className={themeConfig.iconColor} />}
+                                                            {project}
+                                                        </div>
+                                                        <div className="text-gray-400">
+                                                            {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                                        </div>
                                                     </div>
-                                                    <div className="flex flex-col">
-                                                        {Object.entries(categories).map(([category, tasks]) => (
+                                                    {isExpanded && (
+                                                        <div className="flex flex-col">
+                                                            {Object.entries(categories).map(([category, tasks]) => (
                                                             <div key={category} className="mt-1">
                                                                 <div className="px-6 py-1.5 font-bold text-[11px] text-gray-500 flex items-center gap-2">
                                                                     <Folder size={12} className="text-gray-400" />
@@ -2063,8 +2074,10 @@
                                                             </div>
                                                         ))}
                                                     </div>
+                                                    )}
                                                 </div>
-                                            ))}
+                                            );
+                                            })}
                                         </div>
                                     );
                                 })()
