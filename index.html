@@ -1981,8 +1981,8 @@
             }
 
             // Render Views
-            const renderTaskGroup = (title, subtitle, icon, themeConfig, filterFn, emptyMessage) => {
-                const filteredTasks = monthTasks.filter(filterFn);
+            const renderTaskGroup = (title, subtitle, icon, themeConfig, filterFn, emptyMessage, sourceTasks = monthTasks) => {
+                const filteredTasks = sourceTasks.filter(filterFn);
                 
                 return (
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
@@ -2227,6 +2227,15 @@
                             { bg: 'bg-gray-100', border: 'border-gray-200', textTitle: 'text-gray-800', folderBg: 'bg-gray-100/80', folderText: 'text-gray-800', folderBorder: 'border-gray-200', iconColor: 'text-gray-600' }, 
                             t => t.status === 'cancelled' || t.status === 'rejected', 
                             'No cancelled or rejected tasks this month.'
+                        )}
+                        {renderTaskGroup(
+                            'Unscheduled Tasks', 
+                            'งานที่ยังไม่ระบุเวลา', 
+                            <CalendarDays className="text-orange-600" size={20} />, 
+                            { bg: 'bg-orange-50', border: 'border-orange-100', textTitle: 'text-orange-800', folderBg: 'bg-orange-50/80', folderText: 'text-orange-800', folderBorder: 'border-orange-100', iconColor: 'text-orange-600' }, 
+                            t => !t.startDate || !t.endDate, 
+                            'No unscheduled tasks found.',
+                            tasks
                         )}
                     </div>
                 </div>
