@@ -1836,12 +1836,38 @@
                 return selectedYear >= startYear && selectedYear <= endYear;
             });
 
-            // Statistics
+            // Statistics (Grouped by Project)
+            const projectGroups = {};
+            yearlyTasks.forEach(t => {
+                const p = t.project || 'Unknown';
+                if (!projectGroups[p]) projectGroups[p] = [];
+                projectGroups[p].push(t);
+            });
+
+            let totalProjCount = 0;
+            let completedProjCount = 0;
+            let ongoingProjCount = 0;
+            let delayedProjCount = 0;
+
+            Object.values(projectGroups).forEach(tasksInProject => {
+                totalProjCount++;
+                const hasDelayed = tasksInProject.some(t => t.status === 'delayed' || t.blocker || calculateDelay(t.endDate, t.actualEndDate) > 0);
+                const allCompleted = tasksInProject.every(t => t.status === 'completed' || t.status === 'cancelled');
+                
+                if (hasDelayed) {
+                    delayedProjCount++;
+                } else if (allCompleted) {
+                    completedProjCount++;
+                } else {
+                    ongoingProjCount++;
+                }
+            });
+
             const yearlyStats = {
-                total: yearlyTasks.length,
-                completed: yearlyTasks.filter(t => t.status === 'completed').length,
-                ongoing: yearlyTasks.filter(t => t.status === 'ongoing').length,
-                delayed: yearlyTasks.filter(t => t.status === 'delayed').length,
+                total: totalProjCount,
+                completed: completedProjCount,
+                ongoing: ongoingProjCount,
+                delayed: delayedProjCount,
             };
 
             const monthCounts = Array(12).fill(0);
@@ -2404,7 +2430,17 @@
                                         </div>
                                         <div className="col-span-2 md:col-span-1">
                                             <label className="block text-sm font-medium text-gray-700 mb-1">หมวดหมู่ / เฟสงาน (Category)</label>
-                                            <input type="text" value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="เช่น Phase 1, Area Prep..." />
+                                            <input 
+                                                list="pm-category-options"
+                                                type="text" 
+                                                value={formData.category} 
+                                                onChange={(e) => setFormData({...formData, category: e.target.value})} 
+                                                className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" 
+                                                placeholder="เช่น Phase 1, Area Prep..." 
+                                            />
+                                            <datalist id="pm-category-options">
+                                                {[...new Set(tasks.map(t => t.category).filter(Boolean))].map(c => <option key={c} value={c}>{c}</option>)}
+                                            </datalist>
                                         </div>
                                         <div className="col-span-2">
                                             <label className="block text-sm font-medium text-gray-700 mb-1">ชื่องานย่อย (Task Name) *</label>
