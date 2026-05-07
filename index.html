@@ -1822,6 +1822,28 @@
                 prEndDate: ''
             });
 
+            // Fetch tasks from Supabase on mount
+            useEffect(() => {
+                const fetchPmTasks = async () => {
+                    if (!supabaseClient) return;
+                    try {
+                        const { data, error } = await supabaseClient.from('pm_tasks').select('*');
+                        if (error) {
+                            // Only log error, don't break local fallback
+                            console.error('Supabase pm_tasks fetch error:', error.message);
+                            return;
+                        }
+                        if (data && data.length > 0) {
+                            setTasks(data);
+                        }
+                    } catch (err) {
+                        console.error('Error fetching pm_tasks:', err);
+                    }
+                };
+                fetchPmTasks();
+            }, []);
+
+
             // Filtering
             const monthTasks = tasks.filter(t => {
                 const start = new Date(t.startDate);
@@ -1907,7 +1929,7 @@
                 setIsModalOpen(true);
             };
 
-            const handleSaveTask = () => {
+            const handleSaveTask = async () => {
                 if (!formData.title.trim()) return alert('กรุณาระบุชื่องาน');
                 if (!formData.project.trim()) return alert('กรุณาระบุโปรเจคหลัก');
                 if (formData.startDate > formData.endDate) return alert('วันเริ่มต้นต้องไม่มากกว่าวันสิ้นสุด (Due Date)');
@@ -1920,19 +1942,47 @@
                 }
 
                 const finalData = { ...formData, project: projectName };
+                let newTask;
 
                 if (editingTask) {
-                    setTasks(tasks.map(t => t.id === editingTask ? { ...finalData, id: t.id } : t));
+                    newTask = { ...finalData, id: editingTask };
+                    setTasks(tasks.map(t => t.id === editingTask ? newTask : t));
                 } else {
-                    setTasks([...tasks, { ...finalData, id: Date.now() }]);
+                    newTask = { ...finalData, id: Date.now() };
+                    setTasks([...tasks, newTask]);
                 }
+                
                 setIsModalOpen(false);
+
+                // Save to Supabase
+                if (supabaseClient) {
+                    try {
+                        const { error } = editingTask 
+                            ? await supabaseClient.from('pm_tasks').update(finalData).eq('id', editingTask)
+                            : await supabaseClient.from('pm_tasks').insert([newTask]);
+                        
+                        if (error) throw error;
+                    } catch (err) {
+                        console.error('Error saving to Supabase:', err);
+                        alert('เกิดข้อผิดพลาดในการบันทึกข้อมูลไปยังฐานข้อมูลส่วนกลาง (แต่ข้อมูลบันทึกลงเครื่องคุณแล้ว): ' + err.message);
+                    }
+                }
             };
 
-            const handleDeleteTask = (id) => {
+            const handleDeleteTask = async (id) => {
                 if(confirm('ต้องการลบงานนี้ใช่หรือไม่? (Are you sure?)')) {
                     setTasks(tasks.filter(t => t.id !== id));
                     setIsModalOpen(false);
+                    
+                    if (supabaseClient) {
+                        try {
+                            const { error } = await supabaseClient.from('pm_tasks').delete().eq('id', id);
+                            if (error) throw error;
+                        } catch (err) {
+                            console.error('Error deleting from Supabase:', err);
+                            alert('ลบข้อมูลจากฐานข้อมูลส่วนกลางไม่สำเร็จ: ' + err.message);
+                        }
+                    }
                 }
             };
 
