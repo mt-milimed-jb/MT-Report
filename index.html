@@ -1512,7 +1512,7 @@
         }
 
         async function sendLineNotify(ticket) {
-            const url = 'https://script.google.com/macros/s/AKfycbw6LLS8QZ_gPGauj31VQRh4PeLpYRR1tlyJ_4MBME2M61Lpb62xtfOk8W9APao0TWBTUw/exec';
+            const url = 'https://script.google.com/macros/s/AKfycbxrYWjDfQU7FDzwwFQXc-kYmYUtNAyVqTR7_36Izy0uWhrGxMrCE8Q2BDEfZ8ToDxGdrw/exec';
             if (!url) return; 
             const baseUrl = window.location.href.split('?')[0];
             const qrUrl = `${baseUrl}?qr_tk=${ticket.id}`;
@@ -1520,27 +1520,24 @@
             
             const message = `\n📢 มีรายการแจ้งซ่อมใหม่!\nTK: ${ticket.id}\nเครื่องจักร: ${ticket.machineName} (${ticket.machineId})\nอาการ: ${ticket.symptom}\nความเร่งด่วน: ${ticket.priority}\nผู้แจ้ง: ${ticket.reqName} (${ticket.reqDept})\n\nสแกน QR หรือคลิก Link เพื่อดูรายละเอียด:\n${qrUrl}`;
             try {
-                fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: message, imageUrl: qrApiUrl })
-                });
+                const form = new FormData();
+                form.append('message', message);
+                form.append('imageUrl', qrApiUrl);
+                fetch(url, { method: 'POST', body: form, mode: 'no-cors' });
             } catch (err) {
                 console.error('Line Notify error:', err);
             }
         }
 
         async function notifyLineStatusChange(ticket, actionName) {
-            const url = 'https://script.google.com/macros/s/AKfycbw6LLS8QZ_gPGauj31VQRh4PeLpYRR1tlyJ_4MBME2M61Lpb62xtfOk8W9APao0TWBTUw/exec';
+            const url = 'https://script.google.com/macros/s/AKfycbxrYWjDfQU7FDzwwFQXc-kYmYUtNAyVqTR7_36Izy0uWhrGxMrCE8Q2BDEfZ8ToDxGdrw/exec';
             if (!url) return; 
             const baseUrl = window.location.href.split('?')[0];
             const message = `\n🔄 อัปเดตสถานะงานซ่อม\nTK: ${ticket.id}\n📍 ${actionName}\nสถานะปัจจุบัน: ${ticket.status}\nช่างรับผิดชอบ: ${ticket.tech || '-'}\nInspector: ${ticket.inspectorName || '-'}\n\nดูรายละเอียดเพิ่มเติม:\n${baseUrl}?qr_tk=${ticket.id}`;
             try {
-                fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: message })
-                });
+                const form = new FormData();
+                form.append('message', message);
+                fetch(url, { method: 'POST', body: form, mode: 'no-cors' });
             } catch (err) {
                 console.error('Line Notify error:', err);
             }
