@@ -248,6 +248,10 @@
                             <textarea id="req-symptom" required rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"></textarea>
                         </div>
                         <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">แนบรูปภาพ (ถ้ามี)</label>
+                            <input type="file" id="req-image" accept="image/*" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm">
+                        </div>
+                        <div class="mb-4">
                             <label class="block text-sm font-medium text-gray-700 mb-1">ความเร่งด่วน</label>
                             <select id="req-priority" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm">
                                 <option value="Low">ต่ำ (Low)</option>
@@ -256,7 +260,7 @@
                                 <option value="Urgent">ฉุกเฉิน เครื่องหยุด (Urgent - Line Stop)</option>
                             </select>
                         </div>
-                        <button type="submit" class="w-full bg-blue-600 text-white font-medium py-2 px-4 rounded-md hover:bg-blue-700 transition">ส่งใบแจ้งซ่อม</button>
+                        <button id="btn-submit-request" type="submit" class="w-full bg-blue-600 text-white font-medium py-2 px-4 rounded-md hover:bg-blue-700 transition">ส่งใบแจ้งซ่อม</button>
                     </form>
                 </div>
                 
@@ -305,6 +309,31 @@
                             </tr>
                         </thead>
                         <tbody id="table-maintenance-body" class="bg-white divide-y divide-gray-200">
+                            <!-- JS injected -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-blue-500 mt-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold text-gray-800">รายการติดตามเวลาปฏิบัติงาน (TK Time Tracking)</h2>
+                    <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">ฝ่ายซ่อมบำรุง</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left font-medium text-gray-500">เลขที่ TK</th>
+                                <th class="px-4 py-3 text-left font-medium text-gray-500">ช่างรับงาน</th>
+                                <th class="px-4 py-3 text-left font-medium text-gray-500">Inspector</th>
+                                <th class="px-4 py-3 text-left font-medium text-gray-500">เวลา Check In</th>
+                                <th class="px-4 py-3 text-left font-medium text-gray-500">เวลา Check Out</th>
+                                <th class="px-4 py-3 text-left font-medium text-gray-500">เวลาเข้าถึงหน้างาน</th>
+                                <th class="px-4 py-3 text-left font-medium text-gray-500">ระยะเวลาซ่อม</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-maintenance-tracking-body" class="bg-white divide-y divide-gray-200">
                             <!-- JS injected -->
                         </tbody>
                     </table>
@@ -379,6 +408,123 @@
                             <!-- JS injected -->
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- View 4: QR Mobile View (Inspector & Technician) -->
+        <div id="view-qr" class="hidden">
+            <div class="max-w-xl mx-auto bg-white p-6 rounded-lg shadow-md border-t-4 border-[#1f3a93] mb-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2"><i class="fas fa-qrcode mr-2"></i>หน้างานซ่อม (Mobile View)</h2>
+                
+                <div class="mb-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <h3 class="text-md font-semibold text-gray-700 mb-2">ข้อมูลแจ้งซ่อม</h3>
+                    <p class="text-sm"><strong>เลขที่:</strong> <span id="qr-tk-id" class="text-blue-600 font-bold"></span></p>
+                    <p class="text-sm"><strong>เครื่องจักร:</strong> <span id="qr-machine"></span></p>
+                    <p class="text-sm"><strong>เรื่อง/อาการ:</strong> <span id="qr-symptom"></span></p>
+                    <p class="text-sm"><strong>ผู้แจ้ง:</strong> <span id="qr-requester"></span></p>
+                    <p class="text-sm"><strong>สถานะ:</strong> <span id="qr-status" class="font-bold"></span></p>
+                    <div id="qr-image-container" class="mt-2 hidden">
+                        <img id="qr-image" src="" alt="ภาพประกอบ" class="max-h-40 rounded-md border border-gray-300">
+                    </div>
+                </div>
+
+                <!-- Inspector Section -->
+                <div class="mb-6 border border-purple-200 rounded-lg overflow-hidden">
+                    <div class="bg-purple-100 px-4 py-2 font-bold text-purple-800 flex justify-between items-center">
+                        <span><i class="fas fa-user-check mr-2"></i>สำหรับ Inspector</span>
+                    </div>
+                    <div class="p-4">
+                        <div class="mb-3">
+                            <label class="block text-sm font-medium text-gray-700">ชื่อ Inspector (ผู้ตรวจเช็คเวลา)</label>
+                            <input type="text" id="qr-inspector-name" placeholder="ระบุชื่อ..." class="mt-1 w-full px-3 py-2 border rounded-md text-sm">
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4 text-center mb-4">
+                            <div class="bg-gray-50 p-3 rounded border">
+                                <p class="text-xs text-gray-500 mb-1">เวลาเข้า (Check In)</p>
+                                <p id="qr-checkin-display" class="font-bold text-gray-800">-</p>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded border">
+                                <p class="text-xs text-gray-500 mb-1">เวลาออก (Check Out)</p>
+                                <p id="qr-checkout-display" class="font-bold text-gray-800">-</p>
+                            </div>
+                        </div>
+
+                        <div id="qr-timer-container" class="text-center py-4 bg-blue-50 text-blue-800 text-2xl font-mono font-bold rounded-lg mb-4 hidden">
+                            00:00:00
+                        </div>
+
+                        <div class="flex flex-col gap-3">
+                            <button id="btn-qr-checkin" onclick="handleCheckIn()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg shadow-md hover:bg-blue-700">
+                                <i class="fas fa-sign-in-alt mr-2"></i>Check In (ช่างถึงหน้างาน)
+                            </button>
+                            <button id="btn-qr-checkout" onclick="handleCheckOut()" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg shadow-md hover:bg-green-700 hidden">
+                                <i class="fas fa-sign-out-alt mr-2"></i>Check Out (ซ่อมเสร็จ)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Technician Section -->
+                <div class="border border-yellow-200 rounded-lg overflow-hidden">
+                    <div class="bg-yellow-100 px-4 py-2 font-bold text-yellow-800 flex justify-between items-center">
+                        <span><i class="fas fa-tools mr-2"></i>สำหรับช่าง (Technician)</span>
+                    </div>
+                    <div class="p-4">
+                        <form id="form-qr-assign" onsubmit="saveQRTechAssignment(event)">
+                            <div class="mb-3">
+                                <label class="block text-sm font-medium text-gray-700">ช่างผู้รับผิดชอบ</label>
+                                <select id="qr-assign-tech" required class="w-full px-3 py-2 border rounded-md text-sm mt-1">
+                                    <option value="">-- เลือกช่าง --</option>
+                                </select>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4 mb-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">ประเภทงานซ่อม</label>
+                                    <select id="qr-assign-job-type" required class="mt-1 w-full px-3 py-2 border rounded-md text-sm">
+                                        <option value="เครื่องกล">เครื่องกล</option>
+                                        <option value="ไฟฟ้า">ไฟฟ้า</option>
+                                        <option value="ไอน้ำ">ไอน้ำ</option>
+                                        <option value="Hvac">Hvac</option>
+                                        <option value="อื่นๆ">อื่นๆ</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">การดำเนินการ</label>
+                                    <select id="qr-assign-repair-type" required class="mt-1 w-full px-3 py-2 border rounded-md text-sm">
+                                        <option value="ซ่อมเองได้">ซ่อมเองได้</option>
+                                        <option value="ซ่อมภายนอก">ซ่อมภายนอก</option>
+                                        <option value="รออะไหล่">รออะไหล่</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="block text-sm font-medium text-gray-700">การประเมินเบื้องต้น</label>
+                                <textarea id="qr-assign-note" required rows="2" class="mt-1 w-full px-3 py-2 border rounded-md text-sm" placeholder="เช่น มอเตอร์ไหม้ ต้องพันใหม่..."></textarea>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">เวลาที่คาดว่าจะใช้ซ่อม</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="number" min="0" id="qr-assign-est-hours" value="0" class="w-20 px-3 py-2 border rounded-md text-sm">
+                                    <span class="text-sm">ชั่วโมง</span>
+                                    <input type="number" min="0" max="59" id="qr-assign-est-minutes" value="0" class="w-20 px-3 py-2 border rounded-md text-sm">
+                                    <span class="text-sm">นาที</span>
+                                </div>
+                            </div>
+
+                            <button id="btn-qr-save-tech" type="submit" class="w-full bg-yellow-500 text-white font-bold py-3 rounded-lg shadow-md hover:bg-yellow-600">
+                                <i class="fas fa-save mr-2"></i>บันทึกการจ่ายงาน/ประเมินอาการ
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="mt-8 text-center">
+                    <button onclick="window.location.href = window.location.pathname" class="text-gray-500 hover:text-gray-800 text-sm underline">กลับหน้าเมนูหลัก</button>
                 </div>
             </div>
         </div>
@@ -1102,7 +1248,7 @@
             `).join('') || `<tr><td colspan="6" class="text-center py-4 text-gray-500">ไม่มีรายการแจ้งซ่อมใหม่</td></tr>`;
 
             // Eng Manager Tab (In Progress)
-            document.getElementById('table-manager-body').innerHTML = tickets.filter(t => t.status === 'In Progress').map(t => `
+            document.getElementById('table-manager-body').innerHTML = tickets.filter(t => t.status === 'In Progress' && t.checkOutTime && t.tech).map(t => `
                 <tr>
                     <td class="px-4 py-3"><span class="font-medium text-blue-600">${t.id}</span><br><span class="text-sm">${t.machineId}</span></td>
                     <td class="px-4 py-3"><span class="text-xs bg-gray-200 px-1 rounded">${t.jobType}</span><br><span class="font-medium">${t.tech}</span></td>
@@ -1114,6 +1260,41 @@
                     </td>
                 </tr>
             `).join('') || `<tr><td colspan="5" class="text-center py-4 text-gray-500">ไม่มีงานกำลังดำเนินการ</td></tr>`;
+
+            // TK Time Tracking Tab
+            document.getElementById('table-maintenance-tracking-body').innerHTML = tickets.filter(t => t.checkInTime || t.tech).map(t => {
+                const checkIn = t.checkInTime ? new Date(t.checkInTime).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) : '-';
+                const checkOut = t.checkOutTime ? new Date(t.checkOutTime).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) : '-';
+                let accessTimeStr = '-';
+                if (t.checkInTime && t.created_at) {
+                    const accessDiff = new Date(t.checkInTime) - new Date(t.created_at);
+                    if (accessDiff > 0) {
+                        const h = Math.floor(accessDiff / 3600000);
+                        const m = Math.floor((accessDiff % 3600000) / 60000);
+                        accessTimeStr = `${h}h ${m}m`;
+                    }
+                }
+                let repairTimeStr = '-';
+                if (t.checkInTime && t.checkOutTime) {
+                    const repairDiff = new Date(t.checkOutTime) - new Date(t.checkInTime);
+                    if (repairDiff > 0) {
+                        const h = Math.floor(repairDiff / 3600000);
+                        const m = Math.floor((repairDiff % 3600000) / 60000);
+                        repairTimeStr = `${h}h ${m}m`;
+                    }
+                }
+                
+                return `
+                <tr>
+                    <td class="px-4 py-3"><span class="font-medium text-blue-600">${t.id}</span></td>
+                    <td class="px-4 py-3"><span class="font-medium">${t.tech || '-'}</span></td>
+                    <td class="px-4 py-3"><span class="font-medium">${t.inspectorName || '-'}</span></td>
+                    <td class="px-4 py-3 text-xs text-gray-600">${checkIn}</td>
+                    <td class="px-4 py-3 text-xs text-gray-600">${checkOut}</td>
+                    <td class="px-4 py-3 text-xs text-blue-600 font-bold">${accessTimeStr}</td>
+                    <td class="px-4 py-3 text-xs text-green-600 font-bold">${repairTimeStr}</td>
+                </tr>`;
+            }).join('') || `<tr><td colspan="7" class="text-center py-4 text-gray-500">ไม่มีข้อมูลเวลาปฏิบัติงาน</td></tr>`;
 
             // Wait Parts Tab
             const waitPartsBody = document.getElementById('table-wait-parts-body');
@@ -1263,6 +1444,12 @@
         // --- Actions ---
         async function submitRequest(e) {
             e.preventDefault();
+            const btnSubmit = document.getElementById('btn-submit-request');
+            if (btnSubmit) {
+                btnSubmit.disabled = true;
+                btnSubmit.innerText = 'กำลังส่งข้อมูล...';
+            }
+
             const reqDate = document.getElementById('req-date').value;
             const newTicket = {
                 id: generateTicketId(reqDate), 
@@ -1277,6 +1464,22 @@
                 priority: document.getElementById('req-priority').value,
                 status: 'Pending', assignDate: '-', engCloseDate: '-', reqCloseDate: '-'
             };
+
+            const imageInput = document.getElementById('req-image');
+            if (imageInput && imageInput.files.length > 0) {
+                const imageFile = imageInput.files[0];
+                const fileExt = imageFile.name.split('.').pop();
+                const fileName = `${newTicket.id}_${Date.now()}.${fileExt}`;
+                try {
+                    const { data, error } = await supabaseClient.storage.from('maintenance_images').upload(fileName, imageFile);
+                    if (error) throw error;
+                    const { data: publicUrlData } = supabaseClient.storage.from('maintenance_images').getPublicUrl(fileName);
+                    newTicket.imageUrl = publicUrlData.publicUrl;
+                } catch (err) {
+                    console.error('Image upload error:', err);
+                    alert('ไม่สามารถอัปโหลดรูปภาพได้ แต่จะบันทึกข้อมูลแจ้งซ่อมต่อไป');
+                }
+            }
             
             try {
                 const { error } = await supabaseClient.from('tickets').insert([newTicket]);
@@ -1285,13 +1488,70 @@
                 tickets.unshift(newTicket);
                 document.getElementById('form-request').reset();
                 document.getElementById('req-date').valueAsDate = new Date();
-                alert(`ส่งแจ้งซ่อมสำเร็จ!\nเลขที่: ${newTicket.id}`);
+                
+                sendLineNotify(newTicket);
+                showQRCodeModal(newTicket.id);
+
                 renderTables();
                 if(!document.getElementById('view-dashboard').classList.contains('hidden')) renderDashboard();
             } catch (err) {
                 console.error('Error submitting request:', err);
                 alert('ไม่สามารถส่งคำขอแจ้งซ่อมได้: ' + (err.message || JSON.stringify(err)));
+            } finally {
+                if (btnSubmit) {
+                    btnSubmit.disabled = false;
+                    btnSubmit.innerText = 'ส่งใบแจ้งซ่อม';
+                }
             }
+        }
+
+        async function sendLineNotify(ticket) {
+            const url = 'https://script.google.com/macros/s/AKfycbytpls3pQopyrjF9pv9zhcPL9Bv21oK60firk5upb-XAFR8eL-NypQhseFIKXOQEBcIPw/exec';
+            if (!url) return; 
+            const baseUrl = window.location.href.split('?')[0];
+            const message = `\n📢 มีรายการแจ้งซ่อมใหม่!\nTK: ${ticket.id}\nเครื่องจักร: ${ticket.machineName} (${ticket.machineId})\nอาการ: ${ticket.symptom}\nความเร่งด่วน: ${ticket.priority}\nผู้แจ้ง: ${ticket.reqName} (${ticket.reqDept})\n\nสแกน QR หรือคลิก Link เพื่อดูรายละเอียด:\n${baseUrl}?qr_tk=${ticket.id}`;
+            try {
+                fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message })
+                });
+            } catch (err) {
+                console.error('Line Notify error:', err);
+            }
+        }
+
+        function showQRCodeModal(ticketId) {
+            const baseUrl = window.location.href.split('?')[0];
+            const qrUrl = `${baseUrl}?qr_tk=${ticketId}`;
+            const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrUrl)}`;
+            
+            let modal = document.getElementById('modal-qr-success');
+            if (!modal) {
+                document.body.insertAdjacentHTML('beforeend', `
+                <div id="modal-qr-success" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-[100]">
+                    <div class="relative top-20 mx-auto p-5 border w-full max-w-sm shadow-lg rounded-md bg-white text-center">
+                        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+                            <i class="fas fa-check text-green-600 text-xl"></i>
+                        </div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-2">ส่งแจ้งซ่อมสำเร็จ!</h3>
+                        <p class="text-sm text-gray-500 mb-4">เลขที่: <span id="qr-success-tk" class="font-bold text-blue-600"></span></p>
+                        
+                        <div class="bg-gray-100 p-4 rounded-lg flex justify-center mb-4">
+                            <img id="qr-success-img" src="" alt="QR Code" class="w-48 h-48">
+                        </div>
+                        <p class="text-xs text-gray-500 mb-4">Inspector/ช่าง สามารถสแกน QR Code นี้เพื่อเข้าถึงระบบบันทึกเวลาและการทำงานหน้างาน</p>
+                        
+                        <div class="flex justify-center">
+                            <button onclick="closeModal('modal-qr-success')" class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700">ตกลงปิดหน้าต่าง</button>
+                        </div>
+                    </div>
+                </div>`);
+                modal = document.getElementById('modal-qr-success');
+            }
+            document.getElementById('qr-success-tk').innerText = ticketId;
+            document.getElementById('qr-success-img').src = qrApiUrl;
+            modal.classList.remove('hidden');
         }
 
         function openAssignModal(id) {
@@ -1659,13 +1919,187 @@
             }
         }
 
+        let currentQrTicketId = null;
+        let qrTimerInterval = null;
+
+        // --- QR View Logic ---
+        function initQRView(ticketId) {
+            currentQrTicketId = ticketId;
+            document.querySelector('nav').classList.add('hidden'); // Hide main nav
+            document.getElementById('view-home').classList.add('hidden');
+            
+            ['dashboard', 'requester', 'maintenance', 'manager'].forEach(id => {
+                const view = document.getElementById(`view-${id}`);
+                if (view) view.classList.add('hidden');
+            });
+
+            const ticket = tickets.find(t => t.id === ticketId);
+            if (!ticket) {
+                alert('ไม่พบข้อมูลแจ้งซ่อมรหัส: ' + ticketId);
+                return;
+            }
+
+            document.getElementById('view-qr').classList.remove('hidden');
+            
+            document.getElementById('qr-tk-id').innerText = ticket.id;
+            document.getElementById('qr-machine').innerText = `${ticket.machineName} (${ticket.machineId})`;
+            document.getElementById('qr-symptom').innerText = `${ticket.reqSubject} - ${ticket.symptom}`;
+            document.getElementById('qr-requester').innerText = `${ticket.reqName} (${ticket.reqDept})`;
+            document.getElementById('qr-status').innerText = ticket.status;
+            
+            if (ticket.imageUrl) {
+                document.getElementById('qr-image-container').classList.remove('hidden');
+                document.getElementById('qr-image').src = ticket.imageUrl;
+            }
+
+            // Populate Inspector Section
+            document.getElementById('qr-inspector-name').value = ticket.inspectorName || '';
+            document.getElementById('qr-checkin-display').innerText = ticket.checkInTime ? new Date(ticket.checkInTime).toLocaleTimeString('th-TH') : '-';
+            document.getElementById('qr-checkout-display').innerText = ticket.checkOutTime ? new Date(ticket.checkOutTime).toLocaleTimeString('th-TH') : '-';
+            
+            if (ticket.checkInTime && !ticket.checkOutTime) {
+                document.getElementById('btn-qr-checkin').classList.add('hidden');
+                document.getElementById('btn-qr-checkout').classList.remove('hidden');
+                startQRTimer(new Date(ticket.checkInTime));
+            } else if (ticket.checkOutTime) {
+                document.getElementById('btn-qr-checkin').classList.add('hidden');
+                document.getElementById('btn-qr-checkout').classList.add('hidden');
+                document.getElementById('qr-timer-container').classList.remove('hidden');
+                const diff = new Date(ticket.checkOutTime) - new Date(ticket.checkInTime);
+                document.getElementById('qr-timer-container').innerText = formatTimer(diff);
+            }
+
+            // Populate Technician Section
+            const selectTech = document.getElementById('qr-assign-tech');
+            selectTech.innerHTML = '<option value="">-- เลือกช่าง --</option>' + techniciansList.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+            if (ticket.tech) selectTech.value = ticket.tech;
+            
+            document.getElementById('qr-assign-job-type').value = ticket.jobType || 'เครื่องกล';
+            document.getElementById('qr-assign-repair-type').value = ticket.repairType || 'ซ่อมเองได้';
+            document.getElementById('qr-assign-note').value = ticket.assignNote || '';
+            document.getElementById('qr-assign-est-hours').value = ticket.estHours || 0;
+            document.getElementById('qr-assign-est-minutes').value = ticket.estMinutes || 0;
+
+            if (ticket.tech) { // Already assigned
+                 document.getElementById('btn-qr-save-tech').innerText = 'อัปเดตการจ่ายงาน';
+            }
+        }
+
+        async function handleCheckIn() {
+            const name = document.getElementById('qr-inspector-name').value.trim();
+            if (!name) { alert('กรุณาระบุชื่อ Inspector'); return; }
+            
+            const ticket = tickets.find(t => t.id === currentQrTicketId);
+            if (!ticket) return;
+
+            const now = new Date().toISOString();
+            const updates = { inspectorName: name, checkInTime: now };
+            
+            try {
+                const { error } = await supabaseClient.from('tickets').update(updates).eq('id', ticket.id);
+                if (error) throw error;
+                Object.assign(ticket, updates);
+                initQRView(ticket.id); // Refresh view
+            } catch (err) {
+                alert('Error Check-in: ' + err.message);
+            }
+        }
+
+        async function handleCheckOut() {
+            const ticket = tickets.find(t => t.id === currentQrTicketId);
+            if (!ticket) return;
+
+            const now = new Date().toISOString();
+            const updates = { checkOutTime: now };
+            
+            try {
+                const { error } = await supabaseClient.from('tickets').update(updates).eq('id', ticket.id);
+                if (error) throw error;
+                Object.assign(ticket, updates);
+                clearInterval(qrTimerInterval);
+                initQRView(ticket.id); // Refresh view
+            } catch (err) {
+                alert('Error Check-out: ' + err.message);
+            }
+        }
+
+        function startQRTimer(startTime) {
+            const container = document.getElementById('qr-timer-container');
+            container.classList.remove('hidden');
+            if (qrTimerInterval) clearInterval(qrTimerInterval);
+            
+            qrTimerInterval = setInterval(() => {
+                const diff = new Date() - startTime;
+                container.innerText = formatTimer(diff);
+            }, 1000);
+        }
+
+        function formatTimer(ms) {
+            let seconds = Math.floor(ms / 1000);
+            let hours = Math.floor(seconds / 3600);
+            seconds %= 3600;
+            let minutes = Math.floor(seconds / 60);
+            seconds %= 60;
+            return `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+        }
+
+        async function saveQRTechAssignment(e) {
+            e.preventDefault();
+            const ticket = tickets.find(t => t.id === currentQrTicketId);
+            if (!ticket) return;
+
+            const updates = {};
+            updates.jobType = document.getElementById('qr-assign-job-type').value;
+            updates.repairType = document.getElementById('qr-assign-repair-type').value;
+            
+            if (updates.repairType === 'ซ่อมภายนอก' || updates.repairType === 'รออะไหล่') {
+                updates.status = 'Waiting Parts';
+                updates.waitStartDate = new Date().toISOString();
+            } else {
+                updates.status = 'In Progress';
+            }
+
+            updates.tech = document.getElementById('qr-assign-tech').value;
+            updates.assignNote = document.getElementById('qr-assign-note').value;
+            updates.estHours = parseInt(document.getElementById('qr-assign-est-hours').value) || 0;
+            updates.estMinutes = parseInt(document.getElementById('qr-assign-est-minutes').value) || 0;
+            if (!ticket.assignDate || ticket.assignDate === '-') {
+                updates.assignDate = new Date().toISOString().split('T')[0];
+            }
+            updates.rejectReason = '';
+
+            try {
+                const btn = document.getElementById('btn-qr-save-tech');
+                btn.disabled = true; btn.innerText = 'กำลังบันทึก...';
+                
+                const { error } = await supabaseClient.from('tickets').update(updates).eq('id', ticket.id);
+                if (error) throw error;
+                Object.assign(ticket, updates);
+                
+                alert('บันทึกการจ่ายงานสำเร็จ!');
+                initQRView(ticket.id); // Refresh
+                btn.disabled = false;
+            } catch (err) {
+                console.error('Error assigning from QR:', err);
+                alert('ไม่สามารถบันทึกข้อมูลได้: ' + (err.message || JSON.stringify(err)));
+                document.getElementById('btn-qr-save-tech').disabled = false;
+            }
+        }
+
         async function initApp() {
             await fetchTechnicians();
             await fetchTickets();
-            switchTab('home');
-            // initial render dashboard metrics if on dashboard
-            if(!document.getElementById('view-dashboard').classList.contains('hidden')) {
-                renderDashboard();
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const qrTk = urlParams.get('qr_tk');
+            
+            if (qrTk) {
+                initQRView(qrTk);
+            } else {
+                switchTab('home');
+                if(!document.getElementById('view-dashboard').classList.contains('hidden')) {
+                    renderDashboard();
+                }
             }
         }
 
