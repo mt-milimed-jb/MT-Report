@@ -37,6 +37,9 @@
                 </div>
                 <!-- Navigation / Back Button -->
                 <div class="flex items-center space-x-4 text-sm font-medium text-gray-600">
+                    <button onclick="openManageStaffModal()" id="btn-manage-staff" class="hidden flex items-center bg-purple-600 text-white hover:bg-purple-700 font-medium transition-colors duration-200 px-3 py-2 rounded-lg shadow-sm">
+                        <i class="fas fa-users-cog mr-2"></i>จัดการพนักงาน
+                    </button>
                     <button onclick="toggleAdminMode()" id="btn-admin-mode" class="flex items-center text-gray-400 hover:text-red-600 hover:bg-red-50 font-medium transition-colors duration-200 px-3 py-2 rounded-lg">
                         <i class="fas fa-user-shield mr-2"></i>ADMIN
                     </button>
@@ -473,7 +476,13 @@
                     <div class="p-4">
                         <div class="mb-3">
                             <label class="block text-sm font-medium text-gray-700">ชื่อ Inspector (ผู้ตรวจเช็คเวลา)</label>
-                            <input type="text" id="qr-inspector-name" placeholder="ระบุชื่อ..." class="mt-1 w-full px-3 py-2 border rounded-md text-sm">
+                            <select id="qr-inspector-name" class="mt-1 w-full px-3 py-2 border rounded-md text-sm">
+                                <option value="">-- เลือก Inspector --</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="block text-sm font-medium text-gray-700"><i class="fas fa-lock mr-1 text-purple-500"></i>รหัส PIN ส่วนตัว (Inspector)</label>
+                            <input type="password" id="qr-inspector-pin" placeholder="ใส่รหัส PIN" maxlength="6" class="mt-1 w-full px-3 py-2 border border-purple-300 rounded-md text-sm text-center tracking-widest text-lg focus:outline-none focus:ring-2 focus:ring-purple-400">
                         </div>
                         
                         <div class="grid grid-cols-2 gap-4 text-center mb-4">
@@ -552,6 +561,10 @@
                                 </div>
                             </div>
 
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700"><i class="fas fa-lock mr-1 text-yellow-600"></i>รหัส PIN ส่วนตัว (ช่าง) เพื่อยืนยัน</label>
+                                <input type="password" id="qr-tech-pin" placeholder="ใส่รหัส PIN" maxlength="6" class="mt-1 w-full px-3 py-2 border border-yellow-300 rounded-md text-sm text-center tracking-widest text-lg focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                            </div>
                             <button id="btn-qr-save-tech" type="submit" class="w-full bg-yellow-500 text-white font-bold py-3 rounded-lg shadow-md hover:bg-yellow-600">
                                 <i class="fas fa-save mr-2"></i>บันทึกการจ่ายงาน/ประเมินอาการ
                             </button>
@@ -567,17 +580,51 @@
 
     </div>
 
-    <!-- Modal: Manage Technicians -->
-    <div id="modal-manage-tech" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-[60]">
-        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <h3 class="text-lg font-medium text-gray-900 mb-4">จัดการรายชื่อช่าง</h3>
-            <div class="flex gap-2 mb-4">
-                <input type="text" id="new-tech-name" placeholder="ชื่อช่างใหม่..." class="flex-1 px-3 py-2 border rounded-md text-sm">
-                <button onclick="addTechnician()" class="bg-blue-600 text-white px-3 py-2 rounded-md text-sm hover:bg-blue-700">เพิ่ม</button>
+    <!-- Modal: Manage Staff -->
+    <div id="modal-manage-staff" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-[60]">
+        <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+            <h3 class="text-lg font-medium text-gray-900 mb-4"><i class="fas fa-users-cog mr-2 text-purple-600"></i>จัดการพนักงานและรหัสผ่านส่วนตัว (PIN)</h3>
+            <div class="bg-gray-50 p-4 rounded-lg mb-4 border">
+                <form id="form-add-staff" onsubmit="addStaff(event)" class="grid grid-cols-1 md:grid-cols-4 gap-2">
+                    <input type="hidden" id="edit-staff-id" value="">
+                    <div class="md:col-span-1">
+                        <select id="new-staff-role" required class="w-full px-3 py-2 border rounded-md text-sm">
+                            <option value="">-- หน้าที่ --</option>
+                            <option value="Inspector">Inspector</option>
+                            <option value="Technician">ช่างซ่อม</option>
+                            <option value="Manager">ผู้จัดการ</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-1">
+                        <input type="text" id="new-staff-name" required placeholder="ชื่อพนักงาน..." class="w-full px-3 py-2 border rounded-md text-sm">
+                    </div>
+                    <div class="md:col-span-1">
+                        <input type="password" id="new-staff-pin" required placeholder="ตั้งรหัส PIN..." class="w-full px-3 py-2 border rounded-md text-sm text-center tracking-widest">
+                    </div>
+                    <div class="md:col-span-1 flex items-end gap-2">
+                        <button type="button" id="btn-cancel-edit" onclick="cancelEditStaff()" class="hidden w-1/3 bg-gray-400 text-white px-2 py-2 rounded-md text-sm hover:bg-gray-500 font-medium">ยกเลิก</button>
+                        <button type="submit" id="btn-submit-staff" class="w-full bg-blue-600 text-white px-3 py-2 rounded-md text-sm hover:bg-blue-700 font-medium">เพิ่มพนักงาน</button>
+                    </div>
+                </form>
             </div>
-            <ul id="tech-list-manage" class="mb-4 max-h-40 overflow-y-auto border rounded-md p-2"></ul>
+            
+            <div class="overflow-x-auto max-h-64 border rounded-md mb-4">
+                <table class="min-w-full text-sm divide-y divide-gray-200">
+                    <thead class="bg-gray-100 sticky top-0">
+                        <tr>
+                            <th class="px-3 py-2 text-left font-medium">หน้าที่</th>
+                            <th class="px-3 py-2 text-left font-medium">ชื่อพนักงาน</th>
+                            <th class="px-3 py-2 text-center font-medium">รหัส PIN</th>
+                            <th class="px-3 py-2 text-center font-medium">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="staff-list-manage" class="bg-white divide-y divide-gray-200">
+                        <!-- JS injected -->
+                    </tbody>
+                </table>
+            </div>
             <div class="flex justify-end">
-                <button onclick="closeModal('modal-manage-tech')" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md text-sm hover:bg-gray-300">ปิด</button>
+                <button onclick="closeModal('modal-manage-staff')" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md text-sm hover:bg-gray-300">ปิด</button>
             </div>
         </div>
     </div>
@@ -615,7 +662,6 @@
                     <div class="mb-3">
                         <div class="flex justify-between items-end mb-1">
                             <label class="block text-sm font-medium text-gray-700">มอบหมายช่าง</label>
-                            <button type="button" onclick="openTechManager()" class="text-xs text-blue-600 hover:text-blue-800"><i class="fas fa-cog mr-1"></i>จัดการช่าง</button>
                         </div>
                         <select id="assign-tech" required class="w-full px-3 py-2 border rounded-md text-sm">
                             <option value="">-- เลือกช่างผู้รับผิดชอบ --</option>
@@ -784,8 +830,10 @@
                             <input type="date" id="req-close-date" required class="mt-1 w-full px-3 py-2 border rounded-md text-sm">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">ชื่อผู้ตรวจรับ/ผู้ปิดงาน</label>
-                            <input type="text" id="req-close-name" required placeholder="ระบุชื่อผู้ปิดงาน" class="mt-1 w-full px-3 py-2 border rounded-md text-sm">
+                            <label class="block text-sm font-medium text-gray-700">ชื่อผู้ตรวจรับ (Inspector)</label>
+                            <select id="req-close-name" required class="mt-1 w-full px-3 py-2 border rounded-md text-sm">
+                                <option value="">-- เลือกชื่อ --</option>
+                            </select>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">รหัส PIN ตรวจรับงาน</label>
@@ -898,11 +946,17 @@
 
     <!-- Modal: Manager Auth -->
     <div id="modal-manager-auth" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-[80]">
-        <div class="relative top-20 mx-auto p-5 border w-full max-w-xs shadow-lg rounded-md bg-white">
-            <h3 class="text-lg font-medium text-gray-900 mb-4"><i class="fas fa-lock text-red-600 mr-2"></i>ยืนยันสิทธิ์ Manager</h3>
+        <div class="relative top-20 mx-auto p-5 border w-full max-w-sm shadow-lg rounded-md bg-white">
+            <h3 class="text-lg font-medium text-gray-900 mb-4"><i class="fas fa-lock text-red-600 mr-2"></i>ยืนยันสิทธิ์ ผู้จัดการ (Manager)</h3>
             <form id="form-manager-auth" onsubmit="handleManagerAuth(event)">
+                <div class="mb-3">
+                    <label class="block text-sm font-medium text-gray-700">ชื่อผู้จัดการ</label>
+                    <select id="manager-auth-name" required class="mt-1 w-full px-3 py-2 border rounded-md text-sm">
+                        <option value="">-- เลือกชื่อ --</option>
+                    </select>
+                </div>
                 <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700">รหัส PIN อนุมัติ</label>
+                    <label class="block text-sm font-medium text-gray-700">รหัส PIN ส่วนตัว</label>
                     <input type="password" id="manager-auth-pin" required placeholder="ใส่รหัส PIN" class="mt-1 w-full px-3 py-2 border rounded-md text-sm text-center tracking-widest text-lg">
                 </div>
                 <div class="flex justify-end space-x-3">
@@ -1091,6 +1145,9 @@
                 btn.classList.remove('text-gray-400', 'hover:bg-red-50');
                 btn.classList.add('bg-red-600', 'text-white', 'hover:bg-red-700');
                 
+                const btnStaff = document.getElementById('btn-manage-staff');
+                if (btnStaff) btnStaff.classList.remove('hidden');
+                
                 alert('เข้าสู่โหมด ADMIN สำเร็จ');
                 renderTables();
                 if(!document.getElementById('view-dashboard').classList.contains('hidden')) renderDashboard();
@@ -1105,6 +1162,9 @@
             btn.innerHTML = '<i class="fas fa-user-shield mr-2"></i>ADMIN';
             btn.classList.remove('bg-red-600', 'text-white', 'hover:bg-red-700');
             btn.classList.add('text-gray-400', 'hover:bg-red-50', 'hover:text-red-600');
+            
+            const btnStaff = document.getElementById('btn-manage-staff');
+            if (btnStaff) btnStaff.classList.add('hidden');
             
             renderTables();
             if(!document.getElementById('view-dashboard').classList.contains('hidden')) renderDashboard();
@@ -1203,50 +1263,138 @@
             `;
         }
 
-        // --- Technicians ---
+        // --- Staff Management ---
         function loadTechnicians() {
             const techs = techniciansList;
-            const select = document.getElementById('assign-tech');
-            select.innerHTML = '<option value="">-- เลือกช่างผู้รับผิดชอบ --</option>' + techs.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
             
-            const list = document.getElementById('tech-list-manage');
-            list.innerHTML = techs.map((t, index) => `
-                <li class="flex justify-between items-center py-1 border-b last:border-0">
-                    <span class="text-sm">${t.name}</span>
-                    <button onclick="removeTechnician(${t.id})" class="text-red-500 hover:text-red-700 text-xs"><i class="fas fa-trash"></i></button>
-                </li>
-            `).join('');
+            // Populate Manager Auth select
+            const managerSelect = document.getElementById('manager-auth-name');
+            if (managerSelect) {
+                const managers = techs.filter(t => t.role === 'Manager' || !t.role); // Fallback for old records
+                managerSelect.innerHTML = '<option value="">-- เลือกชื่อ --</option>' + managers.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+            }
+            
+            // Populate Inspector Selects
+            const inspectorSelect = document.getElementById('qr-inspector-name');
+            const reqVerifySelect = document.getElementById('req-close-name');
+            const inspectors = techs.filter(t => t.role === 'Inspector');
+            const inspectorOptions = '<option value="">-- เลือก Inspector --</option>' + inspectors.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+            if (inspectorSelect) inspectorSelect.innerHTML = inspectorOptions;
+            if (reqVerifySelect) reqVerifySelect.innerHTML = inspectorOptions;
+
+            // Populate Tech Select
+            const techSelect1 = document.getElementById('assign-tech');
+            const techSelect2 = document.getElementById('qr-assign-tech');
+            const mechanics = techs.filter(t => t.role === 'Technician' || !t.role);
+            const techOptions = '<option value="">-- เลือกช่างผู้รับผิดชอบ --</option>' + mechanics.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+            if (techSelect1) techSelect1.innerHTML = techOptions;
+            if (techSelect2) techSelect2.innerHTML = techOptions;
+            
+            // Populate Manage Staff Modal
+            const list = document.getElementById('staff-list-manage');
+            if (list) {
+                list.innerHTML = techs.map(t => `
+                    <tr>
+                        <td class="px-3 py-2 whitespace-nowrap"><span class="px-2 py-1 text-xs rounded-full bg-gray-200 text-gray-800">${t.role || 'ไม่มี'}</span></td>
+                        <td class="px-3 py-2 whitespace-nowrap font-medium text-gray-900">${t.name}</td>
+                        <td class="px-3 py-2 whitespace-nowrap text-center text-gray-500 font-mono tracking-widest">${t.pin || '-'}</td>
+                        <td class="px-3 py-2 whitespace-nowrap text-center">
+                            <button onclick="editStaff(${t.id})" class="text-blue-500 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded text-xs transition mr-1"><i class="fas fa-edit mr-1"></i>แก้ไข</button>
+                            <button onclick="removeStaff(${t.id})" class="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded text-xs transition"><i class="fas fa-trash mr-1"></i>ลบ</button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
         }
-        function openTechManager() { loadTechnicians(); document.getElementById('modal-manage-tech').classList.remove('hidden'); }
         
-        async function addTechnician() {
-            const name = document.getElementById('new-tech-name').value.trim();
-            if(name) {
+        function openManageStaffModal() { 
+            loadTechnicians(); 
+            document.getElementById('modal-manage-staff').classList.remove('hidden'); 
+        }
+        
+        async function addStaff(e) {
+            e.preventDefault();
+            const editId = document.getElementById('edit-staff-id').value;
+            const role = document.getElementById('new-staff-role').value;
+            const name = document.getElementById('new-staff-name').value.trim();
+            const pin = document.getElementById('new-staff-pin').value.trim();
+            
+            if(name && role && pin) {
                 try {
-                    const { data, error } = await supabaseClient.from('technicians').insert([{ name: name }]).select();
-                    if (error) throw error;
-                    if (data && data.length > 0) {
-                        techniciansList.push(data[0]);
-                        document.getElementById('new-tech-name').value = '';
+                    if (editId) {
+                        const { error } = await supabaseClient.from('technicians').update({ name: name, role: role, pin: pin }).eq('id', editId);
+                        if (error) throw error;
+                        const staff = techniciansList.find(t => t.id == editId);
+                        if (staff) {
+                            staff.name = name;
+                            staff.role = role;
+                            staff.pin = pin;
+                        }
+                        cancelEditStaff();
                         loadTechnicians();
+                        alert('แก้ไขข้อมูลพนักงานสำเร็จ');
+                    } else {
+                        const { data, error } = await supabaseClient.from('technicians').insert([{ name: name, role: role, pin: pin }]).select();
+                        if (error) throw error;
+                        if (data && data.length > 0) {
+                            techniciansList.push(data[0]);
+                            document.getElementById('form-add-staff').reset();
+                            loadTechnicians();
+                        }
                     }
                 } catch (err) {
-                    console.error('Error adding technician:', err);
-                    alert('ไม่สามารถเพิ่มช่างได้: ' + (err.message || JSON.stringify(err)));
+                    console.error('Error adding/updating staff:', err);
+                    alert('เกิดข้อผิดพลาด: ' + (err.message || JSON.stringify(err)));
                 }
             }
         }
         
-        async function removeTechnician(id) {
+        function editStaff(id) {
+            const staff = techniciansList.find(t => t.id == id);
+            if (!staff) return;
+            document.getElementById('edit-staff-id').value = staff.id;
+            document.getElementById('new-staff-role').value = staff.role || '';
+            document.getElementById('new-staff-name').value = staff.name || '';
+            document.getElementById('new-staff-pin').value = staff.pin || '';
+            
+            const btnSubmit = document.getElementById('btn-submit-staff');
+            btnSubmit.innerText = 'บันทึกแก้ไข';
+            btnSubmit.classList.replace('bg-blue-600', 'bg-yellow-500');
+            btnSubmit.classList.replace('hover:bg-blue-700', 'hover:bg-yellow-600');
+            document.getElementById('btn-cancel-edit').classList.remove('hidden');
+        }
+
+        function cancelEditStaff() {
+            document.getElementById('edit-staff-id').value = '';
+            document.getElementById('form-add-staff').reset();
+            
+            const btnSubmit = document.getElementById('btn-submit-staff');
+            btnSubmit.innerText = 'เพิ่มพนักงาน';
+            btnSubmit.classList.replace('bg-yellow-500', 'bg-blue-600');
+            btnSubmit.classList.replace('hover:bg-yellow-600', 'hover:bg-blue-700');
+            document.getElementById('btn-cancel-edit').classList.add('hidden');
+        }
+        
+        async function removeStaff(id) {
+            if (!confirm('ยืนยันที่จะลบพนักงานรายนี้ออกจากระบบ?')) return;
             try {
                 const { error } = await supabaseClient.from('technicians').delete().eq('id', id);
                 if (error) throw error;
                 techniciansList = techniciansList.filter(t => t.id !== id);
                 loadTechnicians();
             } catch (err) {
-                console.error('Error removing technician:', err);
-                alert('ไม่สามารถลบช่างได้: ' + (err.message || JSON.stringify(err)));
+                console.error('Error removing staff:', err);
+                alert('ไม่สามารถลบพนักงานได้: ' + (err.message || JSON.stringify(err)));
             }
+        }
+        
+        function validateStaffPin(name, pin) {
+            if (!name || !pin) return false;
+            const staff = techniciansList.find(t => t.name === name);
+            if (!staff) return false;
+            // For backward compatibility: if a staff has no pin set yet, allow generic or reject
+            if (!staff.pin) return true; // Accept anything if they haven't set a pin yet to avoid lockouts
+            return staff.pin === pin;
         }
 
         // --- Core UI & Tabs ---
@@ -1936,14 +2084,20 @@
             e.preventDefault();
             
             const pin = document.getElementById('req-close-pin').value;
-            const name = document.getElementById('req-close-name').value.trim();
+            const name = document.getElementById('req-close-name').value;
             
-            if (pin !== '1001') {
-                alert('รหัส PIN ตรวจรับงานไม่ถูกต้อง! (ต้องเป็น 1001)');
+            if (!name) {
+                alert('กรุณาเลือกชื่อผู้ตรวจรับงาน (Inspector)');
                 return;
             }
-            if (!name) {
-                alert('กรุณาระบุชื่อผู้ตรวจรับงาน');
+            if (!pin) {
+                alert('กรุณาใส่รหัส PIN ก่อนดำเนินการ');
+                return;
+            }
+            if (!validateStaffPin(name, pin)) {
+                alert('รหัส PIN ไม่ถูกต้อง! กรุณาตรวจสอบอีกครั้ง');
+                document.getElementById('req-close-pin').value = '';
+                document.getElementById('req-close-pin').focus();
                 return;
             }
 
@@ -1997,8 +2151,15 @@
 
         function handleManagerAuth(e) {
             e.preventDefault();
+            const name = document.getElementById('manager-auth-name').value;
             const pin = document.getElementById('manager-auth-pin').value;
-            if (pin === '1010') {
+            
+            if (!name) {
+                alert('กรุณาเลือกชื่อผู้จัดการ');
+                return;
+            }
+
+            if (pin === '1010' || validateStaffPin(name, pin)) { // Fallback 1010 just in case
                 closeModal('modal-manager-auth');
                 if (managerAuthCallbackAction === 'openEngCloseModal') {
                     openEngCloseModal(managerAuthTargetId);
@@ -2006,7 +2167,7 @@
                     openPartsArrivedModal(managerAuthTargetId);
                 }
             } else {
-                alert('รหัส PIN ผู้จัดการไม่ถูกต้อง! (ต้องเป็น 1010)');
+                alert('รหัส PIN ผู้จัดการไม่ถูกต้อง!');
             }
         }
 
@@ -2182,8 +2343,12 @@
                 document.getElementById('qr-image').src = ticket.imageUrl;
             }
 
-            // Populate Inspector Section
-            document.getElementById('qr-inspector-name').value = ticket.inspectorName || '';
+            // Populate Inspector Dropdown (filtered by role = Inspector)
+            const inspectorSelect = document.getElementById('qr-inspector-name');
+            const inspectors = techniciansList.filter(t => t.role === 'Inspector');
+            inspectorSelect.innerHTML = '<option value="">-- เลือก Inspector --</option>' + inspectors.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+            inspectorSelect.value = ticket.inspectorName || '';
+            document.getElementById('qr-inspector-pin').value = '';
             document.getElementById('qr-checkin-display').innerText = ticket.checkInTime ? new Date(ticket.checkInTime).toLocaleTimeString('th-TH') : '-';
             document.getElementById('qr-checkout-display').innerText = ticket.checkOutTime ? new Date(ticket.checkOutTime).toLocaleTimeString('th-TH') : '-';
             
@@ -2199,9 +2364,10 @@
                 document.getElementById('qr-timer-container').innerText = formatTimer(diff);
             }
 
-            // Populate Technician Section
+            // Populate Technician Section (filtered by role = Technician)
             const selectTech = document.getElementById('qr-assign-tech');
-            selectTech.innerHTML = '<option value="">-- เลือกช่าง --</option>' + techniciansList.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+            const mechanics = techniciansList.filter(t => t.role === 'Technician');
+            selectTech.innerHTML = '<option value="">-- เลือกช่าง --</option>' + mechanics.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
             if (ticket.tech) selectTech.value = ticket.tech;
             
             document.getElementById('qr-assign-job-type').value = ticket.jobType || 'เครื่องกล';
@@ -2216,12 +2382,15 @@
         }
 
         async function handleCheckIn() {
-            const name = document.getElementById('qr-inspector-name').value.trim();
-            if (!name) { alert('กรุณาระบุชื่อ Inspector'); return; }
+            const name = document.getElementById('qr-inspector-name').value;
+            if (!name) { alert('กรุณาเลือกชื่อ Inspector'); return; }
             
-            const pin = prompt('กรุณาใส่รหัสผ่าน (PIN) เพื่อทำการ Check In:');
-            if (pin !== '1100') {
-                alert('รหัส PIN ไม่ถูกต้อง!');
+            const pin = document.getElementById('qr-inspector-pin').value;
+            if (!pin) { alert('กรุณาใส่รหัส PIN ส่วนตัวก่อน Check In'); return; }
+            if (!validateStaffPin(name, pin)) {
+                alert('รหัส PIN ไม่ถูกต้อง! กรุณาตรวจสอบอีกครั้ง');
+                document.getElementById('qr-inspector-pin').value = '';
+                document.getElementById('qr-inspector-pin').focus();
                 return;
             }
             
@@ -2235,6 +2404,7 @@
                 const { error } = await supabaseClient.from('tickets').update(updates).eq('id', ticket.id);
                 if (error) throw error;
                 Object.assign(ticket, updates);
+                document.getElementById('qr-inspector-pin').value = '';
                 initQRView(ticket.id); // Refresh view
                 notifyLineStatusChange(ticket, 'Inspector Check-in (ถึงหน้างาน)');
             } catch (err) {
@@ -2243,9 +2413,15 @@
         }
 
         async function handleCheckOut() {
-            const pin = prompt('กรุณาใส่รหัสผ่าน (PIN) เพื่อทำการ Check Out:');
-            if (pin !== '1100') {
-                alert('รหัส PIN ไม่ถูกต้อง!');
+            const name = document.getElementById('qr-inspector-name').value;
+            if (!name) { alert('กรุณาเลือกชื่อ Inspector (เพื่อให้แน่ใจว่าเป็นคนเดิม)'); return; }
+
+            const pin = document.getElementById('qr-inspector-pin').value;
+            if (!pin) { alert('กรุณาใส่รหัส PIN ส่วนตัวก่อน Check Out'); return; }
+            if (!validateStaffPin(name, pin)) {
+                alert('รหัส PIN ไม่ถูกต้อง! กรุณาตรวจสอบอีกครั้ง');
+                document.getElementById('qr-inspector-pin').value = '';
+                document.getElementById('qr-inspector-pin').focus();
                 return;
             }
 
@@ -2260,6 +2436,7 @@
                 if (error) throw error;
                 Object.assign(ticket, updates);
                 clearInterval(qrTimerInterval);
+                document.getElementById('qr-inspector-pin').value = '';
                 initQRView(ticket.id); // Refresh view
                 notifyLineStatusChange(ticket, 'Inspector Check-out (ซ่อมเสร็จเบื้องต้น)');
             } catch (err) {
@@ -2292,7 +2469,20 @@
             const ticket = tickets.find(t => t.id === currentQrTicketId);
             if (!ticket) return;
 
+            const tech = document.getElementById('qr-assign-tech').value;
+            if (!tech) { alert('กรุณาเลือกช่างผู้รับผิดชอบ'); return; }
+
+            const pin = document.getElementById('qr-tech-pin').value;
+            if (!pin) { alert('กรุณาใส่รหัส PIN ส่วนตัวของช่างก่อนบันทึก'); return; }
+            if (!validateStaffPin(tech, pin)) {
+                alert('รหัส PIN ของช่างไม่ถูกต้อง! กรุณาตรวจสอบอีกครั้ง');
+                document.getElementById('qr-tech-pin').value = '';
+                document.getElementById('qr-tech-pin').focus();
+                return;
+            }
+
             const updates = {};
+            updates.tech = tech;
             updates.jobType = document.getElementById('qr-assign-job-type').value;
             updates.repairType = document.getElementById('qr-assign-repair-type').value;
             
@@ -2303,7 +2493,6 @@
                 updates.status = 'In Progress';
             }
 
-            updates.tech = document.getElementById('qr-assign-tech').value;
             updates.assignNote = document.getElementById('qr-assign-note').value;
             updates.estHours = parseInt(document.getElementById('qr-assign-est-hours').value) || 0;
             updates.estMinutes = parseInt(document.getElementById('qr-assign-est-minutes').value) || 0;
@@ -2320,9 +2509,11 @@
                 if (error) throw error;
                 Object.assign(ticket, updates);
                 
+                document.getElementById('qr-tech-pin').value = '';
                 alert('บันทึกการจ่ายงานสำเร็จ!');
                 initQRView(ticket.id); // Refresh
                 btn.disabled = false;
+                notifyLineStatusChange(ticket, 'ช่างรับงานซ่อมและประเมินเบื้องต้น');
             } catch (err) {
                 console.error('Error assigning from QR:', err);
                 alert('ไม่สามารถบันทึกข้อมูลได้: ' + (err.message || JSON.stringify(err)));
