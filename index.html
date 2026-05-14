@@ -1222,7 +1222,12 @@
                 
                 return `
                 <tr>
-                    <td class="px-4 py-3"><span class="font-medium text-blue-600">${t.id}</span></td>
+                    <td class="px-4 py-3">
+                        ${t.status === 'Pending' 
+                            ? `<button onclick="showQRCodeModal('${t.id}')" class="font-medium text-blue-600 hover:text-blue-800 hover:underline" title="คลิกเพื่อดู QR Code อีกครั้ง">${t.id}</button>`
+                            : `<span class="font-medium text-blue-600">${t.id}</span>`
+                        }
+                    </td>
                     <td class="px-4 py-3"><span class="font-medium">${t.machineId}</span><br><span class="text-xs text-gray-500">${t.machineName}</span></td>
                     <td class="px-4 py-3"><div class="text-sm text-gray-800">${t.reqSubject}</div><div class="text-xs text-gray-500 truncate w-32">${t.symptom}</div></td>
                     <td class="px-4 py-3 text-xs text-gray-600">แจ้ง: ${t.reqDate}<br>จ่าย: ${t.assignDate}</td>
@@ -1507,10 +1512,29 @@
         }
 
         async function sendLineNotify(ticket) {
-            const url = 'https://script.google.com/macros/s/AKfycbytpls3pQopyrjF9pv9zhcPL9Bv21oK60firk5upb-XAFR8eL-NypQhseFIKXOQEBcIPw/exec';
+            const url = 'https://script.google.com/macros/s/AKfycby4Eqx3BYcZCDjx4pJ3oKpf5h3FH7zer7hB-aV-I1OBD-5iUysGDZITHlpjVu4iKb167w/exec';
             if (!url) return; 
             const baseUrl = window.location.href.split('?')[0];
-            const message = `\n📢 มีรายการแจ้งซ่อมใหม่!\nTK: ${ticket.id}\nเครื่องจักร: ${ticket.machineName} (${ticket.machineId})\nอาการ: ${ticket.symptom}\nความเร่งด่วน: ${ticket.priority}\nผู้แจ้ง: ${ticket.reqName} (${ticket.reqDept})\n\nสแกน QR หรือคลิก Link เพื่อดูรายละเอียด:\n${baseUrl}?qr_tk=${ticket.id}`;
+            const qrUrl = `${baseUrl}?qr_tk=${ticket.id}`;
+            const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrUrl)}`;
+            
+            const message = `\n📢 มีรายการแจ้งซ่อมใหม่!\nTK: ${ticket.id}\nเครื่องจักร: ${ticket.machineName} (${ticket.machineId})\nอาการ: ${ticket.symptom}\nความเร่งด่วน: ${ticket.priority}\nผู้แจ้ง: ${ticket.reqName} (${ticket.reqDept})\n\nสแกน QR หรือคลิก Link เพื่อดูรายละเอียด:\n${qrUrl}`;
+            try {
+                fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message, imageUrl: qrApiUrl })
+                });
+            } catch (err) {
+                console.error('Line Notify error:', err);
+            }
+        }
+
+        async function notifyLineStatusChange(ticket, actionName) {
+            const url = 'https://script.google.com/macros/s/AKfycby4Eqx3BYcZCDjx4pJ3oKpf5h3FH7zer7hB-aV-I1OBD-5iUysGDZITHlpjVu4iKb167w/exec';
+            if (!url) return; 
+            const baseUrl = window.location.href.split('?')[0];
+            const message = `\n🔄 อัปเดตสถานะงานซ่อม\nTK: ${ticket.id}\n📍 ${actionName}\nสถานะปัจจุบัน: ${ticket.status}\nช่างรับผิดชอบ: ${ticket.tech || '-'}\nInspector: ${ticket.inspectorName || '-'}\n\nดูรายละเอียดเพิ่มเติม:\n${baseUrl}?qr_tk=${ticket.id}`;
             try {
                 fetch(url, {
                     method: 'POST',
@@ -1589,6 +1613,7 @@
                     const { error } = await supabaseClient.from('tickets').update(updates).eq('id', id);
                     if (error) throw error;
                     Object.assign(ticket, updates);
+                    notifyLineStatusChange(ticket, 'หัวหน้าบันทึกจ่ายงานให้ช่าง');
                 } catch (err) {
                     console.error('Error assigning:', err);
                     alert('ไม่สามารถบันทึกข้อมูลได้: ' + (err.message || JSON.stringify(err)));
@@ -1638,6 +1663,7 @@
                     const { error } = await supabaseClient.from('tickets').update(updates).eq('id', id);
                     if (error) throw error;
                     Object.assign(ticket, updates);
+                    notifyLineStatusChange(ticket, 'อะไหล่มาถึงแล้ว (พร้อมซ่อม)');
                 } catch (err) {
                     console.error('Error saving parts arrived:', err);
                     alert('ไม่สามารถบันทึกข้อมูลได้: ' + (err.message || JSON.stringify(err)));
@@ -1728,6 +1754,7 @@
                     const { error } = await supabaseClient.from('tickets').update(updates).eq('id', id);
                     if (error) throw error;
                     Object.assign(ticket, updates);
+                    notifyLineStatusChange(ticket, 'วิศวกรรมปิดงาน (รอผู้แจ้งตรวจรับ)');
                 } catch (err) {
                     console.error('Error saving eng close:', err);
                     alert('ไม่สามารถบันทึกข้อมูลได้: ' + (err.message || JSON.stringify(err)));
@@ -1797,6 +1824,7 @@
                     const { error } = await supabaseClient.from('tickets').update(updates).eq('id', id);
                     if (error) throw error;
                     Object.assign(ticket, updates);
+                    notifyLineStatusChange(ticket, actionType === 'Reject' ? 'ผู้แจ้งตีกลับงานให้แก้ไข' : 'ผู้แจ้งตรวจสอบและปิดงานสำเร็จ');
                 } catch (err) {
                     console.error('Error saving req close:', err);
                     alert('ไม่สามารถบันทึกข้อมูลได้: ' + (err.message || JSON.stringify(err)));
@@ -1990,6 +2018,12 @@
             const name = document.getElementById('qr-inspector-name').value.trim();
             if (!name) { alert('กรุณาระบุชื่อ Inspector'); return; }
             
+            const pin = prompt('กรุณาใส่รหัสผ่าน (PIN) เพื่อทำการ Check In:');
+            if (pin !== '1100') {
+                alert('รหัส PIN ไม่ถูกต้อง!');
+                return;
+            }
+            
             const ticket = tickets.find(t => t.id === currentQrTicketId);
             if (!ticket) return;
 
@@ -2001,12 +2035,19 @@
                 if (error) throw error;
                 Object.assign(ticket, updates);
                 initQRView(ticket.id); // Refresh view
+                notifyLineStatusChange(ticket, 'Inspector Check-in (ถึงหน้างาน)');
             } catch (err) {
                 alert('Error Check-in: ' + err.message);
             }
         }
 
         async function handleCheckOut() {
+            const pin = prompt('กรุณาใส่รหัสผ่าน (PIN) เพื่อทำการ Check Out:');
+            if (pin !== '1100') {
+                alert('รหัส PIN ไม่ถูกต้อง!');
+                return;
+            }
+
             const ticket = tickets.find(t => t.id === currentQrTicketId);
             if (!ticket) return;
 
@@ -2019,6 +2060,7 @@
                 Object.assign(ticket, updates);
                 clearInterval(qrTimerInterval);
                 initQRView(ticket.id); // Refresh view
+                notifyLineStatusChange(ticket, 'Inspector Check-out (ซ่อมเสร็จเบื้องต้น)');
             } catch (err) {
                 alert('Error Check-out: ' + err.message);
             }
