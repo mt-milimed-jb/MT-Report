@@ -1512,7 +1512,7 @@
         }
 
         async function sendLineNotify(ticket) {
-            const url = 'https://script.google.com/macros/s/AKfycby4Eqx3BYcZCDjx4pJ3oKpf5h3FH7zer7hB-aV-I1OBD-5iUysGDZITHlpjVu4iKb167w/exec';
+            const url = 'https://script.google.com/macros/s/AKfycbw6LLS8QZ_gPGauj31VQRh4PeLpYRR1tlyJ_4MBME2M61Lpb62xtfOk8W9APao0TWBTUw/exec';
             if (!url) return; 
             const baseUrl = window.location.href.split('?')[0];
             const qrUrl = `${baseUrl}?qr_tk=${ticket.id}`;
@@ -1531,7 +1531,7 @@
         }
 
         async function notifyLineStatusChange(ticket, actionName) {
-            const url = 'https://script.google.com/macros/s/AKfycby4Eqx3BYcZCDjx4pJ3oKpf5h3FH7zer7hB-aV-I1OBD-5iUysGDZITHlpjVu4iKb167w/exec';
+            const url = 'https://script.google.com/macros/s/AKfycbw6LLS8QZ_gPGauj31VQRh4PeLpYRR1tlyJ_4MBME2M61Lpb62xtfOk8W9APao0TWBTUw/exec';
             if (!url) return; 
             const baseUrl = window.location.href.split('?')[0];
             const message = `\n🔄 อัปเดตสถานะงานซ่อม\nTK: ${ticket.id}\n📍 ${actionName}\nสถานะปัจจุบัน: ${ticket.status}\nช่างรับผิดชอบ: ${ticket.tech || '-'}\nInspector: ${ticket.inspectorName || '-'}\n\nดูรายละเอียดเพิ่มเติม:\n${baseUrl}?qr_tk=${ticket.id}`;
