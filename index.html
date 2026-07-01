@@ -2305,6 +2305,7 @@
                 techniciansList = data || [];
                 // Update technicians in local storage for legacy code fallback, if any
                 localStorage.setItem('technicians', JSON.stringify(techniciansList.map(t => t.name)));
+                loadTechnicians();
             } catch (err) {
                 console.error('Error fetching technicians:', err);
             }
